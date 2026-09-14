@@ -1919,8 +1919,9 @@ window.PROJECT_DATA = {"generatedAt":"2026-09-09T18:00:39.915044Z","projectCount
   const countBy = (rows, f, fallback='Sem informação') => rows.reduce((a,p) => { const k=p[f]||fallback; a[k]=(a[k]||0)+1; return a; }, {});
   const entries = (counts,n=8) => Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n);
   const color = (brand) => brandColors[brand] || '#7c8aa5';
-  const y = (p) => p.lastUpdateDate ? String(p.lastUpdateDate).slice(0,4) : '';
-  const m = (p) => p.lastUpdateDate ? String(Number(String(p.lastUpdateDate).slice(5,7))) : '';
+  const referenceDate = (p) => p.lastUpdateDate || (p.status === 'FINALIZADO' ? p.plannedEnd : '') || p.stageStart || p.startDate || p.requestDate || '';
+  const y = (p) => referenceDate(p) ? String(referenceDate(p)).slice(0,4) : '';
+  const m = (p) => referenceDate(p) ? String(Number(String(referenceDate(p)).slice(5,7))) : '';
   const formatDate = (iso) => {
     if (!iso) return 'Data não informada';
     const parts = String(iso).slice(0,10).split('-').map(Number);
