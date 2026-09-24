@@ -1,32 +1,2796 @@
-{
-  "flowName": "Atualizar dados do Painel de Projetos",
-  "trigger": "Quando um arquivo for modificado no SharePoint ou OneDrive",
-  "sourceWorkbook": "Projetos 2026 - Acompanhamento v2 - Estrutura da Base Corrigida.xlsx",
-  "actions": [
-    {
-      "name": "Obter conteúdo do arquivo",
-      "connector": "GitHub",
-      "repositoryPath": "TradeHub_Painel_Projetos.html",
-      "output": "body"
-    },
-    {
-      "name": "Executar script",
-      "connector": "Excel Online (Business)",
-      "script": "OfficeScript_AtualizarPainelHtml",
-      "parameter": {
-        "templateHtml": "@{body('Obter_conteudo_do_arquivo')}"
-      },
-      "output": "body/result"
-    },
-    {
-      "name": "Criar ou atualizar arquivo",
-      "connector": "GitHub",
-      "repositoryPath": "TradeHub_Painel_Projetos.html",
-      "fileContentExpression": "@{body('Executar_script')?['result']}"
-    },
-    {
-      "name": "Mensagem de commit",
-      "value": "Atualiza painel de projetos"
-    }
-  ]
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#102a43" />
+  <title>TradeHub | Painel Gerencial de Projetos</title>
+  <style>
+:root {
+  --ink: #102a43;
+  --muted: #627d98;
+  --line: #d9e2ec;
+  --canvas: #eef3f8;
+  --surface: #ffffff;
+  --cyan: #0c8cab;
+  --blue: #1463ff;
+  --mizuno: #173487;
+  --ua: #434a54;
+  --green: #548235;
+  --amber: #fff2cc;
+  --shadow: 0 14px 34px rgba(16, 42, 67, 0.08);
+  font-family: Arial, Helvetica, sans-serif;
 }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--ink); }
+button, select { font: inherit; }
+.page-shell { max-width: 1500px; margin: 0 auto; padding: 28px; }
+.topbar { display: flex; justify-content: space-between; gap: 30px; padding: 28px 32px; background: var(--ink); color: white; border-radius: 18px; box-shadow: var(--shadow); }
+.eyebrow, .section-kicker { margin: 0 0 6px; color: var(--cyan); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.09em; }
+.topbar .eyebrow { color: #72e0f5; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 8px; font-size: clamp(1.65rem, 3vw, 2.25rem); letter-spacing: -0.03em; }
+h2 { margin-bottom: 0; font-size: 1.16rem; letter-spacing: -0.015em; }
+.subtitle { margin-bottom: 0; color: #b9c9d8; font-size: 0.95rem; }
+.filters { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; max-width: 760px; }
+.filters label { color: #dbe7f1; display: grid; gap: 7px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; }
+select { min-width: 145px; padding: 10px 34px 10px 12px; appearance: none; border: 1px solid #44617d; border-radius: 8px; background: #173a5c; color: white; }
+.view-tabs { display: flex; gap: 6px; margin: 22px 0 4px; }
+.view-tab { border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--muted); cursor: pointer; font-weight: 700; padding: 11px 15px; }
+.view-tab.is-active { background: var(--ink); border-color: var(--ink); color: white; }
+.is-hidden { display: none; }
+.overview, .brand-section { margin-top: 24px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 2px 12px; }
+.filter-context, .hint { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.overview-grid { display: grid; grid-template-columns: minmax(320px, 0.75fr) 1.25fr; gap: 16px; }
+.pie-card, .panel, .brand-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 5px 14px rgba(16, 42, 67, 0.035); }
+.pie-card { min-height: 260px; display: flex; align-items: center; justify-content: center; gap: 24px; padding: 22px; }
+.donut { width: 186px; height: 186px; border-radius: 50%; position: relative; background: #d9e2ec; flex: 0 0 auto; }
+.donut::after { content: ''; position: absolute; inset: 42px; background: white; border-radius: 50%; }
+.donut-center { position: absolute; inset: 42px; z-index: 1; display: grid; place-content: center; text-align: center; }
+.donut-center span { color: var(--muted); font-size: 0.7rem; }
+.donut-center strong { margin-top: 4px; font-size: 1.02rem; }
+.pie-legend { min-width: 135px; display: grid; gap: 11px; }
+.legend-item, .inline-legend span { display: flex; align-items: center; gap: 7px; color: #334e68; font-size: 0.82rem; }
+.legend-item small { display: block; margin-top: 2px; color: var(--muted); }
+.swatch { width: 10px; height: 10px; border-radius: 999px; display: inline-block; flex: 0 0 auto; }
+.kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; min-height: 122px; box-shadow: 0 5px 14px rgba(16, 42, 67, 0.035); }
+.kpi-label { color: var(--muted); font-size: 0.82rem; }
+.kpi-value { display: block; margin-top: 10px; color: var(--ink); font-size: clamp(1.65rem, 3vw, 2.5rem); font-weight: 700; letter-spacing: -0.04em; }
+.brand-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.brand-card { padding: 18px; text-align: left; cursor: pointer; background: var(--surface); transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease; }
+.brand-card:hover, .brand-card:focus-visible, .brand-card.is-selected { border-color: var(--brand-color); box-shadow: 0 9px 20px rgba(16, 42, 67, 0.1); transform: translateY(-2px); outline: none; }
+.brand-card-title { display: flex; align-items: center; justify-content: space-between; color: var(--ink); font-weight: 700; }
+.brand-card-metrics { display: flex; gap: 18px; margin-top: 18px; }
+.brand-card-metrics span { color: var(--muted); font-size: 0.72rem; }
+.brand-card-metrics strong { display: block; color: var(--ink); font-size: 1.25rem; margin-top: 3px; }
+.chart-grid { display: grid; gap: 16px; margin-top: 24px; }
+.manager-grid { display: grid; grid-template-columns: 0.8fr 1.35fr 0.8fr; gap: 16px; margin-top: 24px; }
+.primary-charts { grid-template-columns: 1.55fr 0.75fr; }
+.secondary-charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panel { padding: 22px; min-height: 330px; overflow: hidden; }
+.panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 21px; }
+.panel-heading.compact { margin-bottom: 16px; }
+.inline-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+.stacked-chart { display: grid; gap: 18px; }
+.stack-row { display: grid; grid-template-columns: minmax(110px, 0.8fr) 3fr minmax(35px, 0.25fr); align-items: center; gap: 10px; }
+.stack-label { color: #334e68; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-track { height: 27px; display: flex; overflow: hidden; border-radius: 5px; background: #edf2f7; }
+.stack-segment { display: grid; place-items: center; min-width: 0; color: white; font-size: 0.7rem; font-weight: 700; }
+.stack-total { color: var(--muted); text-align: right; font-size: 0.75rem; font-weight: 700; }
+.bar-chart { display: grid; gap: 14px; }
+.bar-row { display: grid; grid-template-columns: minmax(94px, 1fr) 2.2fr 28px; gap: 10px; align-items: center; }
+.bar-label { color: #334e68; font-size: 0.75rem; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 25px; overflow: hidden; border-radius: 4px; background: #edf2f7; }
+.bar-fill { height: 100%; min-width: 2px; display: flex; justify-content: flex-end; align-items: center; padding-right: 8px; border-radius: 4px; color: white; font-size: 0.72rem; font-weight: 700; }
+.bar-value { color: var(--muted); text-align: right; font-size: 0.76rem; font-weight: 700; }
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 3px; background: #f7fafc; }
+.segment { border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; font-size: 0.75rem; padding: 7px 9px; }
+.segment.is-active { background: var(--ink); color: white; }
+.empty-state { padding: 34px 10px; color: var(--muted); font-size: 0.88rem; text-align: center; }
+.attention-count { color: #c05621; font-size: 1.3rem; }
+.attention-list { display: grid; gap: 8px; }
+.attention-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf2f7; }
+.attention-item:last-child { border-bottom: 0; }
+.attention-item strong, .timeline-project strong { display: block; color: var(--ink); font-size: 0.83rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attention-item span, .timeline-project span { color: var(--muted); font-size: 0.72rem; }
+.project-trigger { width: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; font: inherit; text-align: left; }
+.project-trigger:hover strong, .project-trigger:focus-visible strong { color: var(--blue); text-decoration: underline; outline: none; }
+.status-badge { align-self: start; border-radius: 999px; color: white; font-size: 0.67rem; font-weight: 700; padding: 5px 7px; white-space: nowrap; }
+.timeline-view { margin-top: 24px; }
+.timeline-intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 15px; }
+.timeline-intro p:not(.section-kicker) { color: var(--muted); margin: 8px 0 0; }
+.timeline-kpis { display: flex; gap: 10px; }
+.timeline-kpi { min-width: 105px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.timeline-kpi span { display: block; color: var(--muted); font-size: 0.7rem; }
+.timeline-kpi strong { display: block; margin-top: 5px; font-size: 1.25rem; }
+.timeline-panel { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 5px 14px rgba(16,42,67,.035); }
+.timeline-head, .timeline-row { min-width: 1180px; display: grid; grid-template-columns: 1.45fr 0.9fr 0.9fr 0.75fr 1.1fr 1.8fr; gap: 14px; align-items: center; padding: 13px 18px; }
+.timeline-head { background: var(--ink); color: white; font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; }
+.timeline-row { border-bottom: 1px solid #edf2f7; }
+.timeline-row:last-child { border-bottom: 0; }
+.timeline-meta { color: var(--muted); font-size: .75rem; }
+.timeline-stage { color: #334e68; font-size: .78rem; font-weight: 700; }
+.timeline-blocker { color: var(--muted); font-size: .74rem; line-height: 1.25; }
+.timeline-blocker.has-blocker { color: #9c4221; font-weight: 700; }
+.timeline-journey { min-width: 0; display: grid; grid-template-columns: 1fr 22px 1fr; gap: 7px; align-items: center; }
+.journey-date { color: #486581; font-size: .69rem; font-weight: 700; line-height: 1.2; }
+.journey-date:last-child { text-align: right; }
+.journey-line { height: 4px; border-radius: 999px; background: var(--journey-color, #718096); position: relative; }
+.journey-line::before, .journey-line::after { content: ''; position: absolute; top: 50%; width: 8px; height: 8px; border: 2px solid white; border-radius: 50%; background: var(--journey-color, #718096); transform: translateY(-50%); box-shadow: 0 0 0 1px var(--journey-color, #718096); }
+.journey-line::before { left: -2px; }
+.journey-line::after { right: -2px; }
+.project-dialog { width: min(720px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: 16px; box-shadow: 0 24px 80px rgba(16,42,67,.28); color: var(--ink); }
+.project-dialog::backdrop { background: rgba(16,42,67,.58); }
+.dialog-header { display: flex; justify-content: space-between; gap: 20px; padding: 24px 26px 18px; border-bottom: 1px solid var(--line); }
+.dialog-header h2 { max-width: 560px; }
+.dialog-close { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); cursor: pointer; font-size: 1.55rem; line-height: 1; }
+.dialog-body { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; padding: 22px 26px 28px; }
+.detail-item { min-height: 68px; padding: 13px; border: 1px solid #e6edf3; border-radius: 9px; background: #f8fafc; }
+.detail-item.wide { grid-column: 1 / -1; }
+.detail-item span { display: block; color: var(--muted); font-size: .71rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.detail-item strong { display: block; margin-top: 6px; font-size: .88rem; line-height: 1.35; }
+footer { margin: 26px 0 4px; padding: 0 3px; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+
+@media (max-width: 980px) {
+  .topbar, .section-heading { align-items: start; flex-direction: column; }
+  .filters { width: 100%; flex-wrap: wrap; }
+  .filters label, select { flex: 1; }
+  .overview-grid, .primary-charts, .secondary-charts, .manager-grid { grid-template-columns: 1fr; }
+  .brand-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .page-shell { padding: 14px; }
+  .topbar { padding: 22px; border-radius: 12px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { min-height: 100px; padding: 16px; }
+  .pie-card { align-items: flex-start; flex-direction: column; }
+  .stack-row { grid-template-columns: 96px 1fr 28px; }
+  .dialog-body { grid-template-columns: 1fr; }
+}
+
+
+/* === Evolução gerencial v2 === */
+.topbar { align-items: flex-start; }
+.filters { max-width: 900px; }
+.filters .search-label { min-width: 240px; flex: 1 1 240px; }
+.filters input[type="search"] {
+  width: 100%; min-width: 220px; padding: 10px 12px; border: 1px solid #44617d;
+  border-radius: 8px; background: #173a5c; color: white; outline: none;
+}
+.filters input[type="search"]::placeholder { color: #a9bfd2; }
+.filters input[type="search"]:focus, select:focus { border-color: #72e0f5; box-shadow: 0 0 0 3px rgba(114,224,245,.14); }
+
+.filter-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 12px 2px 0;
+}
+.active-filters { display: flex; gap: 7px; flex-wrap: wrap; min-width: 0; }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  background: #fff; border-radius: 999px; color: #486581; font-size: .72rem; padding: 6px 9px;
+}
+.filter-chip button { border: 0; background: transparent; color: #829ab1; cursor: pointer; padding: 0 2px; font-weight: 700; }
+.clear-filters {
+  border: 1px solid var(--line); background: white; color: var(--ink); border-radius: 8px;
+  padding: 8px 11px; cursor: pointer; font-size: .76rem; font-weight: 700; white-space: nowrap;
+}
+.clear-filters:hover { border-color: var(--ink); }
+
+.kpi { position: relative; width: 100%; text-align: left; cursor: pointer; }
+button.kpi { font: inherit; color: inherit; }
+.kpi::after {
+  content: "Abrir drill down →"; position: absolute; left: 22px; bottom: 14px;
+  color: var(--blue); font-size: .69rem; font-weight: 700; opacity: 0;
+  transition: opacity 120ms ease;
+}
+.kpi:hover, .kpi:focus-visible { border-color: #8fb5ff; box-shadow: 0 9px 22px rgba(16,42,67,.1); outline: none; }
+.kpi:hover::after, .kpi:focus-visible::after { opacity: 1; }
+.kpi-value { margin-bottom: 13px; }
+
+.brand-card { cursor: default; }
+.brand-card:hover { transform: none; }
+.brand-card-actions { display: flex; gap: 8px; margin-top: 14px; }
+.brand-action {
+  flex: 1; border: 1px solid var(--line); border-radius: 7px; background: #f8fafc;
+  color: var(--ink); cursor: pointer; padding: 8px 9px; font-size: .72rem; font-weight: 700;
+}
+.brand-action.primary { background: var(--ink); border-color: var(--ink); color: white; }
+
+.clickable-bar { cursor: pointer; border-radius: 6px; transition: background 120ms ease; }
+.clickable-bar:hover, .clickable-bar:focus-visible { background: #f5f8fb; outline: none; }
+.clickable-bar:hover .bar-label, .clickable-bar:focus-visible .bar-label { color: var(--blue); font-weight: 700; }
+
+.panel-drill {
+  border: 0; background: transparent; color: var(--blue); cursor: pointer;
+  font-size: .7rem; font-weight: 700; padding: 5px 0;
+}
+.attention-count-wrap { display: grid; justify-items: end; gap: 3px; }
+
+.result-count { color: var(--muted); font-size: .76rem; margin: 0; }
+.view-tabs { align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.tabs-left { display: flex; gap: 6px; }
+
+.project-dialog.drilldown-dialog { width: min(1040px, calc(100vw - 32px)); }
+.drill-summary {
+  display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px;
+  padding: 18px 26px 0;
+}
+.drill-stat { border: 1px solid #e6edf3; border-radius: 9px; background: #f8fafc; padding: 12px; }
+.drill-stat span { display: block; color: var(--muted); font-size: .68rem; text-transform: uppercase; font-weight: 700; }
+.drill-stat strong { display: block; margin-top: 4px; font-size: 1.05rem; }
+.drill-list { padding: 16px 26px 26px; display: grid; gap: 8px; max-height: 58vh; overflow: auto; }
+.drill-row {
+  display: grid; grid-template-columns: minmax(180px,1.35fr) .65fr .65fr .65fr .8fr auto;
+  gap: 10px; align-items: center; width: 100%; border: 1px solid #e6edf3; border-radius: 9px;
+  background: white; padding: 11px 12px; cursor: pointer; text-align: left; color: inherit;
+}
+.drill-row:hover, .drill-row:focus-visible { border-color: #8fb5ff; background: #f8fbff; outline: none; }
+.drill-main { min-width: 0; }
+.drill-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+.drill-main span, .drill-cell { color: var(--muted); font-size: .72rem; }
+.drill-cell strong { display: block; color: var(--ink); font-size: .78rem; margin-top: 2px; }
+.drill-network {
+  display: grid; grid-template-columns: 1.4fr .5fr .5fr .7fr auto; gap: 10px; align-items: center;
+  width: 100%; border: 1px solid #e6edf3; background: white; border-radius: 9px;
+  padding: 11px 12px; cursor: pointer; color: inherit; text-align: left;
+}
+.drill-network:hover { border-color: #8fb5ff; background: #f8fbff; }
+
+.project-dialog.detail-dialog { width: min(900px, calc(100vw - 32px)); }
+.project-detail-grid { padding: 20px 26px 8px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.detail-hero {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
+  border: 1px solid #dce7f0; border-radius: 10px; padding: 14px; background: #f8fafc;
+}
+.detail-hero p { margin: 5px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+.detail-hero-metric { text-align: right; min-width: 120px; }
+.detail-hero-metric span { display: block; color: var(--muted); font-size: .68rem; text-transform: uppercase; font-weight: 700; }
+.detail-hero-metric strong { display: block; margin-top: 5px; font-size: 1.1rem; }
+.detail-compact { min-height: 70px; border: 1px solid #e6edf3; border-radius: 9px; padding: 11px; }
+.detail-compact span { display: block; color: var(--muted); font-size: .67rem; text-transform: uppercase; font-weight: 700; }
+.detail-compact strong { display: block; margin-top: 5px; font-size: .8rem; line-height: 1.25; word-break: break-word; }
+
+.project-timeline-section { padding: 16px 26px 26px; }
+.project-timeline-heading { display: flex; justify-content: space-between; gap: 14px; align-items: end; margin-bottom: 14px; }
+.project-timeline-heading p { margin: 4px 0 0; color: var(--muted); font-size: .74rem; }
+.project-timeline { position: relative; display: grid; gap: 0; }
+.project-timeline::before {
+  content: ""; position: absolute; left: 17px; top: 17px; bottom: 17px; width: 2px; background: #d9e2ec;
+}
+.project-event { position: relative; display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 0 0 17px; }
+.project-event:last-child { padding-bottom: 0; }
+.event-dot {
+  position: relative; z-index: 1; width: 12px; height: 12px; margin: 5px 0 0 12px;
+  border-radius: 50%; background: white; border: 3px solid var(--event-color,#718096);
+}
+.event-card { border: 1px solid #e6edf3; border-radius: 9px; padding: 12px 13px; background: white; }
+.event-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.event-top strong { font-size: .83rem; }
+.event-date { color: var(--muted); font-size: .71rem; white-space: nowrap; }
+.event-card p { margin: 6px 0 0; color: #486581; font-size: .76rem; line-height: 1.4; }
+.event-card .blocker-note { color: #9c4221; font-weight: 700; }
+
+.data-note {
+  border-left: 3px solid #9fb3c8; margin-top: 12px; padding: 8px 10px; color: var(--muted);
+  background: #f8fafc; font-size: .7rem; line-height: 1.4;
+}
+
+@media (max-width: 980px) {
+  .drill-summary, .project-detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .drill-row { grid-template-columns: 1fr 1fr; }
+  .drill-row .status-badge { justify-self: start; }
+  .drill-network { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 620px) {
+  .filter-actions { align-items: flex-start; flex-direction: column; }
+  .drill-summary, .project-detail-grid { grid-template-columns: 1fr; }
+  .detail-hero { flex-direction: column; }
+  .detail-hero-metric { text-align: left; }
+  .drill-row, .drill-network { grid-template-columns: 1fr; }
+  .project-dialog.drilldown-dialog, .project-dialog.detail-dialog { width: calc(100vw - 16px); }
+}
+
+  
+/* =========================================================
+   TIMELINE EXECUTIVA · V3
+   Visual mais sóbrio, corporativo e orientado à decisão
+   ========================================================= */
+.timeline-view {
+  margin-top: 24px;
+}
+
+.timeline-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 2px 2px 0;
+}
+
+.timeline-intro h2 {
+  font-size: 1.28rem;
+  letter-spacing: -0.025em;
+}
+
+.timeline-intro p:not(.section-kicker) {
+  max-width: 760px;
+  color: #6b7f93;
+  margin: 7px 0 0;
+  line-height: 1.45;
+}
+
+.timeline-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.timeline-kpi {
+  min-width: 112px;
+  padding: 11px 13px;
+  border: 1px solid #dfe7ee;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.timeline-kpi span {
+  display: block;
+  color: #70859a;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.timeline-kpi strong {
+  display: block;
+  margin-top: 5px;
+  color: #16324a;
+  font-size: 1.2rem;
+  letter-spacing: -.03em;
+}
+
+.timeline-kpi.exec-positive { border-top: 3px solid #6f8f7b; }
+.timeline-kpi.exec-neutral  { border-top: 3px solid #8796a5; }
+.timeline-kpi.exec-alert    { border-top: 3px solid #a96060; }
+
+.timeline-panel {
+  overflow-x: auto;
+  border: 1px solid #dfe7ee;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 5px 18px rgba(16,42,67,.04);
+}
+
+.timeline-head,
+.timeline-row {
+  min-width: 1220px;
+  display: grid;
+  grid-template-columns: 1.55fr .8fr 1fr .72fr 1.2fr 1.6fr;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 18px;
+}
+
+.timeline-head {
+  background: #f6f8fa;
+  color: #5c7287;
+  border-bottom: 1px solid #dfe7ee;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.timeline-row {
+  position: relative;
+  background: #ffffff;
+  border-bottom: 1px solid #edf1f5;
+  transition: background 120ms ease;
+}
+
+.timeline-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #aebac5;
+}
+
+.timeline-row:hover {
+  background: #fbfcfd;
+}
+
+.timeline-row.status-exec-progress::before { background: #9a7b3c; }
+.timeline-row.status-exec-standby::before  { background: #7c8995; }
+.timeline-row.status-exec-frozen::before   { background: #6f8290; }
+.timeline-row.status-exec-delay::before    { background: #a95858; }
+.timeline-row.status-exec-done::before     { background: #64816f; }
+
+.timeline-project strong {
+  display: block;
+  color: #18354e;
+  font-size: .82rem;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-project span {
+  display: block;
+  margin-top: 4px;
+  color: #8091a2;
+  font-size: .69rem;
+}
+
+.timeline-meta {
+  display: grid;
+  gap: 6px;
+  color: #60758a;
+  font-size: .72rem;
+}
+
+.timeline-brand {
+  color: #334e68;
+  font-size: .72rem;
+  font-weight: 750;
+}
+
+.priority-pill {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #dfe6ed;
+  border-radius: 999px;
+  background: #f7f9fb;
+  color: #65798d;
+  font-size: .64rem;
+  font-weight: 700;
+}
+
+.timeline-stage {
+  display: grid;
+  gap: 4px;
+  color: #334e68;
+}
+
+.timeline-stage strong {
+  color: #334e68;
+  font-size: .76rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.timeline-stage span {
+  color: #8393a3;
+  font-size: .68rem;
+  font-weight: 500;
+}
+
+.exec-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 9px;
+  border: 1px solid #dfe6ed;
+  border-radius: 999px;
+  background: #f7f9fb;
+  color: #5f7183;
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .025em;
+  white-space: nowrap;
+}
+
+.status-exec-progress .exec-status-badge {
+  border-color: #e3d6b9;
+  background: #faf7f0;
+  color: #7d622d;
+}
+.status-exec-standby .exec-status-badge {
+  border-color: #d9e0e6;
+  background: #f5f7f8;
+  color: #657381;
+}
+.status-exec-frozen .exec-status-badge {
+  border-color: #d5dfe5;
+  background: #f3f6f7;
+  color: #5d717e;
+}
+.status-exec-delay .exec-status-badge {
+  border-color: #ead3d3;
+  background: #fbf5f5;
+  color: #944c4c;
+}
+.status-exec-done .exec-status-badge {
+  border-color: #d6e2da;
+  background: #f4f8f5;
+  color: #58705f;
+}
+
+.timeline-blocker {
+  color: #6d8195;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+.timeline-blocker.has-blocker {
+  color: #874f4f;
+  font-weight: 700;
+}
+
+.timeline-journey {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(34px, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+}
+
+.journey-node {
+  display: grid;
+  grid-template-columns: 9px auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.journey-dot {
+  width: 8px;
+  height: 8px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #95a4b2;
+  box-shadow: 0 0 0 1px #b8c3cd;
+}
+
+.journey-node.is-current .journey-dot {
+  background: #526b80;
+  box-shadow: 0 0 0 1px #7f91a1;
+}
+
+.journey-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.journey-copy small {
+  color: #8a99a7;
+  font-size: .59rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .035em;
+}
+
+.journey-copy strong {
+  color: #4d6478;
+  font-size: .67rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.timeline-journey .journey-line {
+  height: 2px;
+  min-width: 28px;
+  border-radius: 99px;
+  background: #d8e0e7;
+  position: relative;
+}
+
+.timeline-journey .journey-line::before,
+.timeline-journey .journey-line::after {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .timeline-intro { align-items: flex-start; flex-direction: column; }
+  .timeline-kpis { width: 100%; grid-template-columns: repeat(4, minmax(0,1fr)); }
+}
+@media (max-width: 620px) {
+  .timeline-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+
+/* =========================================================
+   TIMELINE · AJUSTE DE ALINHAMENTO V4
+   Quebra de linha no projeto + colunas alinhadas pelo topo
+   ========================================================= */
+
+/* Cabeçalho continua centralizado verticalmente */
+.timeline-head {
+  align-items: center;
+}
+
+/* Linhas passam a alinhar todas as células pelo topo */
+.timeline-row {
+  align-items: start;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+/* Todas as células da linha ocupam o topo de maneira consistente */
+.timeline-row > * {
+  min-width: 0;
+  align-self: start;
+}
+
+/* Nome do projeto pode quebrar em múltiplas linhas */
+.timeline-project strong {
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.3;
+  min-height: 2.1em;
+}
+
+/* Data da solicitação fica sempre abaixo do título */
+.timeline-project span {
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+/* Contexto fica alinhado ao início da linha */
+.timeline-meta {
+  align-content: start;
+  padding-top: 1px;
+}
+
+/* Etapa atual também pode quebrar sem desalinhar */
+.timeline-stage {
+  align-content: start;
+  padding-top: 1px;
+}
+
+.timeline-stage strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+/* Status parte do mesmo eixo visual superior */
+.timeline-row > div:nth-child(4) {
+  padding-top: 0;
+}
+
+/* Ponto de atenção quebra em linha, mantendo a coluna */
+.timeline-blocker {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  padding-top: 1px;
+}
+
+/* Evolução fica alinhada ao topo e não ao centro da altura da linha */
+.timeline-journey {
+  align-self: start;
+  padding-top: 1px;
+}
+
+/* Mantém proporções mais estáveis entre as colunas */
+.timeline-head,
+.timeline-row {
+  grid-template-columns:
+    minmax(250px, 1.65fr)
+    minmax(135px, .78fr)
+    minmax(155px, .95fr)
+    minmax(120px, .68fr)
+    minmax(190px, 1.15fr)
+    minmax(260px, 1.55fr);
+}
+
+/* Pequeno respiro para leitura de linhas altas */
+.timeline-row + .timeline-row {
+  border-top: 0;
+}
+
+@media (max-width: 980px) {
+  .timeline-head,
+  .timeline-row {
+    min-width: 1280px;
+  }
+}
+
+
+/* =========================================================
+   TIMELINE · MARCA E PRIORIDADE SEPARADAS V5
+   ========================================================= */
+.timeline-head,
+.timeline-row {
+  grid-template-columns:
+    minmax(250px, 1.55fr)
+    minmax(115px, .58fr)
+    minmax(105px, .52fr)
+    minmax(155px, .88fr)
+    minmax(118px, .62fr)
+    minmax(190px, 1.08fr)
+    minmax(260px, 1.45fr);
+}
+
+.timeline-head,
+.timeline-row {
+  min-width: 1320px;
+}
+
+.timeline-brand-cell,
+.timeline-priority-cell {
+  min-width: 0;
+  align-self: start;
+  padding-top: 1px;
+}
+
+.timeline-brand {
+  display: block;
+  color: #334e68;
+  font-size: .72rem;
+  font-weight: 750;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.timeline-priority-cell .priority-pill {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .timeline-head,
+  .timeline-row {
+    min-width: 1320px;
+  }
+}
+
+
+/* =========================================================
+   CARD DE ATENÇÃO + TIMELINE INDIVIDUAL V8
+   ========================================================= */
+.attention-item {
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: start;
+  padding: 13px 0;
+}
+
+.attention-project-trigger {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.attention-project-trigger strong {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.attention-meta {
+  display: block;
+  color: #6e8295 !important;
+  font-size: .69rem !important;
+}
+
+.attention-reason {
+  display: block;
+  margin-top: 3px;
+  color: #334e68 !important;
+  font-size: .72rem !important;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.attention-reason b {
+  color: #18354e;
+}
+
+.attention-deadline {
+  display: block;
+  margin-top: 2px;
+  color: #7b8d9e !important;
+  font-size: .67rem !important;
+  font-weight: 700;
+}
+
+.attention-status {
+  background: #f4f6f8 !important;
+  color: #617487 !important;
+  border: 1px solid #dce4eb;
+  margin-top: 1px;
+}
+
+.attention-status.deadline-risk {
+  background: #fbf4f4 !important;
+  color: #925151 !important;
+  border-color: #ead1d1;
+}
+
+.attention-status.deadline-ok {
+  background: #f4f8f5 !important;
+  color: #5b7362 !important;
+  border-color: #d8e4db;
+}
+
+.project-schedule-summary {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.schedule-summary-item {
+  position: relative;
+  min-height: 92px;
+  padding: 13px 14px;
+  border: 1px solid #dfe7ee;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.schedule-summary-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 99px;
+  background: #9aabb9;
+}
+
+.schedule-summary-item.current::before { background: #526f86; }
+.schedule-summary-item.deadline-risk::before { background: #a65b5b; }
+.schedule-summary-item.deadline-ok::before { background: #6d8874; }
+
+.schedule-summary-item span {
+  display: block;
+  color: #75899c;
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.schedule-summary-item strong {
+  display: block;
+  margin-top: 7px;
+  color: #17344d;
+  font-size: .88rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.schedule-summary-item small {
+  display: block;
+  margin-top: 6px;
+  color: #8293a3;
+  font-size: .66rem;
+  line-height: 1.3;
+}
+
+.drill-attention-reason {
+  display: block;
+  margin-top: 4px;
+  color: #805353;
+  font-size: .67rem;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+@media (max-width: 620px) {
+  .project-schedule-summary { grid-template-columns: 1fr; }
+}
+
+
+/* =========================================================
+   TIMELINE · CONTAGEM CLICÁVEL POR SITUAÇÃO V12
+   ========================================================= */
+.timeline-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 720px;
+}
+
+button.situation-kpi {
+  width: auto;
+  min-width: 118px;
+  max-width: 180px;
+  min-height: 62px;
+  padding: 10px 12px;
+  border-top: 1px solid #dfe7ee;
+  background: #ffffff;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+button.situation-kpi span {
+  display: block;
+  max-width: 155px;
+  color: #70859a;
+  font-size: .63rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+button.situation-kpi strong {
+  display: block;
+  margin-top: 5px;
+  color: #16324a;
+  font-size: 1.15rem;
+  letter-spacing: -.03em;
+}
+
+button.situation-kpi:hover,
+button.situation-kpi:focus-visible {
+  border-color: #9db0c1;
+  background: #f8fafc;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+button.situation-kpi.is-selected {
+  border-color: #526f86;
+  background: #f1f6f9;
+  box-shadow: inset 0 0 0 1px #526f86;
+}
+
+@media (max-width: 980px) {
+  .timeline-kpis {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  button.situation-kpi {
+    min-width: calc(50% - 4px);
+    max-width: calc(50% - 4px);
+  }
+}
+
+
+/* =========================================================
+   TIMELINE · PORTFÓLIO COMPLETO V13
+   ========================================================= */
+.timeline-row.status-exec-done {
+  background: #fbfcfb;
+}
+.timeline-row.status-exec-done::before {
+  background: #7d9585;
+}
+.timeline-row.status-exec-neutral {
+  background: #fcfcfd;
+}
+.timeline-row.status-exec-neutral::before {
+  background: #9aa7b3;
+}
+
+/* Cards de status encerrados continuam clicáveis sem competir visualmente
+   com as situações que demandam ação. */
+button.situation-kpi[data-status-filter="FINALIZADO"],
+button.situation-kpi[data-status-filter="CONCLUÍDO"] {
+  border-top-color: #7f9686;
+}
+
+button.situation-kpi[data-status-filter="DECLINADO"] {
+  border-top-color: #9b7474;
+}
+
+
+/* =========================================================
+   VISÃO GERAL · EVOLUÇÃO VISUAL V14
+   ========================================================= */
+.panel-subtitle {
+  margin: 6px 0 0;
+  max-width: 420px;
+  color: #7b8fa2;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+.visual-panel {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(247,250,252,.65), rgba(255,255,255,0) 92px),
+    #ffffff;
+}
+
+.manager-grid {
+  grid-template-columns: .92fr 1.38fr 1.06fr;
+}
+
+.secondary-charts {
+  grid-template-columns: 1.18fr .92fr 1.06fr;
+  align-items: stretch;
+}
+
+.visual-insight {
+  min-width: 92px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f2f7fa;
+  text-align: right;
+}
+
+.visual-insight span {
+  display: block;
+  color: #7a8da0;
+  font-size: .58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.visual-insight strong {
+  display: block;
+  margin-top: 3px;
+  color: #17344d;
+  font-size: .72rem;
+}
+
+/* Prioridade */
+.priority-visual { display: grid; gap: 20px; }
+
+.priority-stack {
+  display: flex;
+  width: 100%;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #edf2f6;
+}
+
+.priority-stack-segment {
+  min-width: 18px;
+  border: 0;
+  border-right: 2px solid rgba(255,255,255,.8);
+  background: var(--priority-color);
+  color: white;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: .66rem;
+  font-weight: 800;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.priority-stack-segment:last-child { border-right: 0; }
+.priority-stack-segment:hover,
+.priority-stack-segment:focus-visible { filter: brightness(.92); outline: none; }
+
+.priority-legend-grid { display: grid; gap: 7px; }
+
+.priority-legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0,1fr) auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.priority-legend-item:hover,
+.priority-legend-item:focus-visible { background: #f5f8fb; outline: none; }
+
+.priority-dot { width: 9px; height: 9px; border-radius: 50%; }
+.priority-copy { min-width: 0; }
+.priority-copy strong { display: block; color: #334e68; font-size: .75rem; }
+.priority-copy small { display: block; margin-top: 2px; color: #8796a5; font-size: .62rem; }
+.priority-legend-item > b { color: #16324a; font-size: .96rem; }
+
+/* Entradas por mês */
+.monthly-visual { min-height: 215px; display: flex; align-items: stretch; }
+.monthly-columns {
+  width: 100%;
+  min-height: 215px;
+  display: grid;
+  grid-template-columns: repeat(12,minmax(18px,1fr));
+  gap: 5px;
+  align-items: end;
+}
+
+.month-column {
+  height: 210px;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 26px 1fr 24px;
+  gap: 4px;
+  align-items: end;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: 0 1px;
+}
+
+.month-column:hover,
+.month-column:focus-visible { background: #f5f8fb; outline: none; }
+
+.month-column.is-selected { background: #eef6fb; }
+
+.month-value {
+  align-self: end;
+  color: #49677f;
+  font-size: .66rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.month-bar-track {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  display: flex;
+  align-items: end;
+  overflow: hidden;
+  border-radius: 5px;
+  background: linear-gradient(180deg,#f7fafc,#eef3f7);
+}
+
+.month-bar-fill {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg,#18a2c2,#1463ff);
+  transition: height 180ms ease;
+}
+
+.month-column.is-selected .month-bar-fill {
+  background: linear-gradient(180deg,#6d54c8,#1463ff);
+}
+
+.month-label {
+  color: #71869a;
+  font-size: .59rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* Ranking de descrições */
+.rank-visual { display: grid; gap: 6px; }
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0,1fr) 42px;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rank-item:hover,
+.rank-item:focus-visible { background: #f6f9fb; outline: none; }
+
+.rank-number {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+  background: #edf3f7;
+  color: #5f7488;
+  font-size: .62rem;
+  font-weight: 800;
+}
+
+.rank-main { min-width: 0; display: grid; gap: 6px; }
+.rank-main strong {
+  color: #334e68;
+  font-size: .69rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-track {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf2f6;
+}
+
+.rank-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--rank-color);
+}
+
+.rank-metric { text-align: right; }
+.rank-metric b { display: block; color: #17344d; font-size: .8rem; }
+.rank-metric small { display: block; margin-top: 1px; color: #8899a8; font-size: .58rem; }
+
+/* Classificação */
+.classification-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 9px;
+}
+
+.classification-card {
+  min-width: 0;
+  min-height: 98px;
+  display: grid;
+  grid-template-columns: 58px minmax(0,1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #e3eaf0;
+  border-radius: 10px;
+  background: #fbfcfd;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.classification-card:hover,
+.classification-card:focus-visible {
+  border-color: #aebdca;
+  background: #f7fafc;
+  outline: none;
+}
+
+.classification-ring {
+  --ring-value: 0;
+  --ring-color: #6d54c8;
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring-color) calc(var(--ring-value) * 1%), #e8edf2 0);
+}
+
+.classification-ring::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: white;
+}
+
+.classification-ring strong {
+  position: relative;
+  z-index: 1;
+  color: #263f55;
+  font-size: .72rem;
+}
+
+.classification-copy { min-width: 0; }
+.classification-copy strong {
+  display: block;
+  color: #334e68;
+  font-size: .69rem;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.classification-copy small { display: block; margin-top: 5px; color: #8495a5; font-size: .62rem; }
+
+/* Status */
+.status-donut-wrap {
+  display: grid;
+  grid-template-columns: 138px minmax(0,1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.status-donut {
+  width: 136px;
+  height: 136px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+}
+
+.status-donut::after {
+  content: "";
+  position: absolute;
+  inset: 27px;
+  border-radius: 50%;
+  background: white;
+}
+
+.status-donut-center {
+  position: absolute;
+  z-index: 1;
+  inset: 27px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.status-donut-center small { color: #8394a4; font-size: .58rem; font-weight: 700; text-transform: uppercase; }
+.status-donut-center strong { color: #17344d; font-size: 1.45rem; letter-spacing: -.04em; }
+
+.status-legend { display: grid; gap: 4px; }
+
+.status-legend-item {
+  display: grid;
+  grid-template-columns: 9px minmax(0,1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 5px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.status-legend-item:hover,
+.status-legend-item:focus-visible { background: #f5f8fb; outline: none; }
+
+.status-swatch { width: 8px; height: 8px; border-radius: 50%; }
+.status-label { min-width: 0; }
+.status-label strong {
+  display: block;
+  color: #334e68;
+  font-size: .64rem;
+  line-height: 1.15;
+  white-space: normal;
+}
+.status-label small { display: block; margin-top: 2px; color: #8899a8; font-size: .57rem; }
+.status-legend-item > b { color: #17344d; font-size: .82rem; }
+
+@media (max-width: 1180px) {
+  .secondary-charts { grid-template-columns: 1fr 1fr; }
+  .status-visual-panel { grid-column: 1 / -1; }
+  .status-donut-wrap { grid-template-columns: 160px 1fr; }
+}
+
+@media (max-width: 980px) {
+  .manager-grid, .secondary-charts { grid-template-columns: 1fr; }
+  .status-visual-panel { grid-column: auto; }
+  .monthly-columns { gap: 8px; }
+}
+
+@media (max-width: 620px) {
+  .classification-grid { grid-template-columns: 1fr; }
+  .status-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
+  .status-legend { width: 100%; }
+  .monthly-columns { gap: 3px; }
+  .month-label { font-size: .54rem; }
+}
+
+
+/* =========================================================
+   TIPO OPERACIONAL · EVOLUÇÃO VISUAL V15
+   ========================================================= */
+.type-visual-panel {
+  background:
+    linear-gradient(180deg, rgba(247,250,252,.65), rgba(255,255,255,0) 92px),
+    #ffffff;
+}
+
+.type-composition {
+  min-height: 245px;
+  display: grid;
+  align-items: center;
+}
+
+.type-hero {
+  display: grid;
+  grid-template-columns: 148px minmax(0,1fr);
+  gap: 22px;
+  align-items: center;
+}
+
+.type-donut {
+  width: 146px;
+  height: 146px;
+  position: relative;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.type-donut:hover,
+.type-donut:focus-visible {
+  transform: scale(1.025);
+  filter: brightness(.98);
+  outline: none;
+}
+
+.type-donut::after {
+  content: "";
+  position: absolute;
+  inset: 29px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #edf2f6;
+}
+
+.type-donut-center {
+  position: absolute;
+  z-index: 1;
+  inset: 29px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.type-donut-center small {
+  display: block;
+  color: #8193a4;
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.type-donut-center strong {
+  display: block;
+  margin-top: 2px;
+  color: #17344d;
+  font-size: 1.55rem;
+  letter-spacing: -.04em;
+}
+
+.type-summary {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.type-summary-card {
+  --type-color: #1463ff;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid #e2e9ef;
+  border-radius: 10px;
+  background: #fbfcfd;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.type-summary-card:hover,
+.type-summary-card:focus-visible {
+  border-color: var(--type-color);
+  background: #f7fafc;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.type-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.type-summary-head i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--type-color);
+}
+
+.type-summary-head strong {
+  min-width: 0;
+  color: #334e68;
+  font-size: .73rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.type-summary-metrics {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.type-summary-metrics b {
+  color: #17344d;
+  font-size: 1.18rem;
+  letter-spacing: -.03em;
+}
+
+.type-summary-metrics small {
+  color: #8697a7;
+  font-size: .62rem;
+}
+
+.type-share-track {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eaf0f4;
+}
+
+.type-share-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--type-color);
+}
+
+@media (max-width: 1180px) {
+  .type-hero {
+    grid-template-columns: 130px minmax(0,1fr);
+    gap: 16px;
+  }
+
+  .type-donut {
+    width: 128px;
+    height: 128px;
+  }
+
+  .type-donut::after,
+  .type-donut-center {
+    inset: 25px;
+  }
+}
+
+@media (max-width: 620px) {
+  .type-hero {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .type-summary {
+    width: 100%;
+  }
+}
+
+
+/* =========================================================
+   MATERIAIS DO PROJETO · V16
+   ========================================================= */
+.project-materials-section {
+  padding: 12px 26px 4px;
+}
+
+.project-materials-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 11px;
+}
+
+.project-materials-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.project-materials-heading p:not(.section-kicker) {
+  margin: 5px 0 0;
+  color: #7a8ea1;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.project-materials {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 9px;
+}
+
+.material-link-button {
+  min-width: 0;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 12px;
+  border: 1px solid #dfe7ee;
+  border-radius: 10px;
+  background: #fbfcfd;
+  color: #17344d;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.material-link-button:not(.is-disabled):hover,
+.material-link-button:not(.is-disabled):focus-visible {
+  border-color: #7897ae;
+  background: #f4f8fb;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.material-link-button.is-disabled {
+  cursor: not-allowed;
+  opacity: .58;
+  background: #f7f9fa;
+}
+
+.material-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #edf4f8;
+  color: #49677f;
+}
+
+.material-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.material-button-copy {
+  min-width: 0;
+}
+
+.material-button-copy strong {
+  display: block;
+  color: #203d55;
+  font-size: .74rem;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.material-button-copy small {
+  display: block;
+  margin-top: 4px;
+  color: #8495a5;
+  font-size: .62rem;
+  line-height: 1.25;
+}
+
+.material-arrow {
+  color: #6d8396;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .project-materials {
+    grid-template-columns: 1fr;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<main class="page-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">TRADE HUB · PROJETOS</p>
+      <h1>Acompanhamento de Projetos</h1>
+      <p class="subtitle" id="dataSummary"></p>
+    </div>
+    <div class="filters" aria-label="Filtros da dashboard">
+      <label class="search-label">Busca global
+        <input id="searchFilter" type="search" placeholder="Rede, loja, projeto, bloqueador..." autocomplete="off" />
+      </label>
+      <label>Ano da solicitação<select id="yearFilter"></select></label>
+      <label>Mês<select id="monthFilter"></select></label>
+      <label>Marca<select id="brandFilter"></select></label>
+      <label>Tipo de projeto<select id="typeFilter"></select></label>
+      <label>Prioridade<select id="priorityFilter"></select></label>
+      <label>Fase / Etapa atual<select id="stageFilter"></select></label>
+      <label>Status<select id="statusFilter"></select></label>
+    </div>
+  </header>
+
+  <div class="filter-actions">
+    <div id="activeFilters" class="active-filters" aria-live="polite"></div>
+    <button id="clearFilters" class="clear-filters" type="button">Limpar filtros</button>
+  </div>
+
+  <nav class="view-tabs" aria-label="Visões da dashboard">
+    <div class="tabs-left">
+      <button class="view-tab is-active" type="button" data-view="management">Visão gerencial</button>
+      <button class="view-tab" type="button" data-view="timeline">Timeline de projetos</button>
+    </div>
+    <p id="resultCount" class="result-count"></p>
+  </nav>
+
+  <div id="managementView">
+    <section class="overview">
+      <div class="section-heading">
+        <div><p class="section-kicker">VISÃO GERAL</p><h2>Projetos do período</h2></div>
+        <p id="filterContext" class="filter-context"></p>
+      </div>
+      <div class="overview-grid">
+        <article class="pie-card">
+          <div class="donut" id="investmentPie"><div class="donut-center"><span>Investimento</span><strong id="pieTotal">R$ 0</strong></div></div>
+          <div id="pieLegend" class="pie-legend"></div>
+        </article>
+        <div class="kpi-grid" id="overviewKpis"></div>
+      </div>
+    </section>
+
+    <section class="brand-section">
+      <div class="section-heading">
+        <div><p class="section-kicker">DETALHE POR MARCA</p><h2>Resumo comparativo</h2></div>
+        <span class="hint">Aplique o filtro ou abra o portfólio da marca.</span>
+      </div>
+      <div id="brandCards" class="brand-cards"></div>
+    </section>
+
+    <section class="manager-grid">
+      <article class="panel visual-panel priority-visual-panel">
+        <div class="panel-heading compact">
+          <div><p class="section-kicker">PRIORIDADE</p><h2>Pressão da carteira</h2><p class="panel-subtitle">Distribuição dos projetos por nível de prioridade.</p></div>
+        </div>
+        <div id="priorityChart" class="priority-visual"></div>
+      </article>
+      <article class="panel attention-panel">
+        <div class="panel-heading compact">
+          <div><p class="section-kicker">ATENÇÃO</p><h2>Projetos que exigem acompanhamento</h2></div>
+          <div class="attention-count-wrap"><strong id="attentionCount" class="attention-count"></strong><button id="attentionDrill" class="panel-drill" type="button">Abrir todos →</button></div>
+        </div>
+        <div id="attentionList" class="attention-list"></div>
+      </article>
+      <article class="panel visual-panel monthly-visual-panel">
+        <div class="panel-heading compact">
+          <div><p class="section-kicker">ENTRADAS</p><h2>Ritmo de entrada</h2><p class="panel-subtitle">Volume mensal de novos projetos no recorte atual.</p></div>
+          <div id="monthlyInsight" class="visual-insight"></div>
+        </div>
+        <div id="monthlyChart" class="monthly-visual"></div>
+      </article>
+    </section>
+
+    <section class="chart-grid primary-charts">
+      <article class="panel wide-panel">
+        <div class="panel-heading"><div><p class="section-kicker">CANAIS</p><h2>Quantidade de projetos por canal</h2></div><div id="brandLegend" class="inline-legend"></div></div>
+        <div id="channelChart" class="stacked-chart"></div>
+      </article>
+      <article class="panel visual-panel type-visual-panel">
+        <div class="panel-heading compact">
+          <div>
+            <p class="section-kicker">TIPO OPERACIONAL</p>
+            <h2>Complexidade da carteira</h2>
+            <p class="panel-subtitle">Composição dos projetos entre demandas simples e projetos complexos.</p>
+          </div>
+        </div>
+        <div id="projectTypeChart" class="type-composition"></div>
+      </article>
+    </section>
+
+    <section class="chart-grid secondary-charts">
+      <article class="panel visual-panel description-visual-panel">
+        <div class="panel-heading compact"><div><p class="section-kicker">DESCRIÇÃO</p><h2>Principais demandas</h2><p class="panel-subtitle">Ranking das descrições mais recorrentes na carteira.</p></div></div>
+        <div id="descriptionChart" class="rank-visual"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading compact">
+          <div><p class="section-kicker">CLASSIFICAÇÃO</p><h2 id="classificationTitle">Projetos por Score Trade</h2><p class="panel-subtitle">Distribuição da carteira segundo a classificação selecionada.</p></div>
+          <div class="segmented"><button class="segment is-active" data-classification="score" type="button">Score</button><button class="segment" data-classification="cluster" type="button">Cluster</button></div>
+        </div>
+        <div id="classificationChart" class="classification-visual"></div>
+      </article>
+      <article class="panel visual-panel status-visual-panel">
+        <div class="panel-heading compact"><div><p class="section-kicker">STATUS ATUAL</p><h2>Composição da carteira</h2><p class="panel-subtitle">Distribuição percentual dos projetos por situação.</p></div></div>
+        <div id="statusChart" class="status-composition"></div>
+      </article>
+    </section>
+  </div>
+
+  <section id="timelineView" class="timeline-view is-hidden">
+    <div class="timeline-intro">
+      <div><p class="section-kicker">VISÃO EXECUTIVA DO PORTFÓLIO</p><h2>Timeline do portfólio de projetos</h2><p>Selecione uma situação para filtrar a carteira completa. Projetos ativos, finalizados e declinados permanecem disponíveis para análise.</p></div>
+      <div id="timelineKpis" class="timeline-kpis"></div>
+    </div>
+    <div class="timeline-panel">
+      <div class="timeline-head"><span>Projeto</span><span>Marca</span><span>Prioridade</span><span>Etapa atual</span><span>Situação</span><span>Ponto de atenção</span><span>Evolução</span></div>
+      <div id="timelineRows" class="timeline-rows"></div>
+    </div>
+  </section>
+
+  <dialog id="drilldownDialog" class="project-dialog drilldown-dialog">
+    <div class="dialog-header">
+      <div><p class="section-kicker">DRILL DOWN GERENCIAL</p><h2 id="drilldownTitle"></h2><p id="drilldownSubtitle" class="result-count"></p></div>
+      <button id="closeDrilldown" class="dialog-close" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div id="drilldownSummary" class="drill-summary"></div>
+    <div id="drilldownList" class="drill-list"></div>
+  </dialog>
+
+  <dialog id="projectDialog" class="project-dialog detail-dialog">
+    <div class="dialog-header">
+      <div><p class="section-kicker">DETALHAMENTO DO PROJETO</p><h2 id="dialogProjectName"></h2></div>
+      <button id="closeDialog" class="dialog-close" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div id="projectDetailGrid" class="project-detail-grid"></div>
+    <section class="project-materials-section">
+      <div class="project-materials-heading">
+        <div>
+          <p class="section-kicker">MATERIAIS DO PROJETO</p>
+          <h2>Documentos e evidências</h2>
+          <p>Acesso rápido às transcrições de reunião, imagens e demais materiais vinculados ao projeto.</p>
+        </div>
+      </div>
+      <div id="projectMaterials" class="project-materials"></div>
+    </section>
+    <section class="project-timeline-section">
+      <div class="project-timeline-heading">
+        <div><p class="section-kicker">TIMELINE INDIVIDUAL</p><h2>Marcos registrados do projeto</h2><p>Exibe somente eventos sustentados pelos campos disponíveis na base atual.</p></div>
+      </div>
+      <div id="projectScheduleSummary" class="project-schedule-summary"></div>
+      <div id="projectTimeline" class="project-timeline"></div>
+      <div class="data-note">A previsão de finalização é extraída da coluna <strong>AV</strong> da base, calculada pela matriz de SLA em dias úteis. O cálculo se inicia na coluna <strong>R</strong>, conforme a regra do Cronograma Base.</div>
+    </section>
+  </dialog>
+
+  <footer>O <strong>Status do projeto</strong> é extraído diretamente da coluna <strong>BK — STATUS ATUAL</strong>. A contagem gerencial considera <strong>projeto único</strong>, consolidando linhas multimarcas quando Rede + Descrição + Data da Solicitação + PDV são iguais. A dashboard considera a <strong>última atualização registrada no projeto</strong> como referência de ano e mês. Os filtros de <strong>Marca</strong>, <strong>Prioridade</strong>, <strong>Fase</strong> e <strong>Situação</strong> atualizam diretamente a Timeline. O card <strong>Portfólio total</strong> considera todos os projetos únicos da base; os demais cards segmentam esse total por Situação. Clique nos KPIs, categorias e projetos para navegar do indicador gerencial até o detalhe do projeto.</footer>
+</main>
+
+<script>
+window.PROJECT_DATA = {"generatedAt":"2026-09-24T14:23:43.942Z","projectCount":101,"years":["2025","2026"],"projects":[{"id":1,"projectName":"1763 - SAPATARIA SHOW-AP-MACAPÁ-CENTRAL-421 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"SAPATARIA SHOW","storeName":"1763 - SAPATARIA SHOW-AP-MACAPÁ-CENTRAL-421","channel":"FAMILY FOOTWEAR","requestDate":"2025-01-06","executionDate":"2025-10-21","lastUpdateDate":"2025-10-21","description":"ATUALIZAÇÃO SIS","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":13770.4,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-01-06","plannedEnd":"2025-10-21","hasAdjustment":false,"hasRefaction":false},{"id":2,"projectName":"4644 - BESNI-SP-SÃO PAULO-LAPA-232 9681 - BESNI-SP-SÃO PAULO-SHOPPING ARICANDUVA-LOJA 2 190 - BESNI-SP-SÃO PAULO-SANTO AMARO-10 3968 - BESNI-SP-SÃO BERNARDO DO CAMPO-CENTRO-1356 3335 - BESNI-SP-SANTO ANDRÉ-CENTRO-383 5252 - BESNI-SP-SÃO PAULO-SANTO AMARO-80 1769 - BESNI-SP-SÃO PAULO-VILA NOVA CACHOEIRINHA-417 2462 - BESNI-SP-SÃO PAULO-CIDADE NITRO OPERÁRIA-655 1448 - BESNI-SP-SÃO PAULO-SHOPPING METRÔ ITAQUERA-LOJA 239 E 240 5192 - BESNI-SP-SÃO VICENTE-CENTRO-410/420 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"BESNI","storeName":"4644 - BESNI-SP-SÃO PAULO-LAPA-232 9681 - BESNI-SP-SÃO PAULO-SHOPPING ARICANDUVA-LOJA 2 190 - BESNI-SP-SÃO PAULO-SANTO AMARO-10 3968 - BESNI-SP-SÃO BERNARDO DO CAMPO-CENTRO-1356 3335 - BESNI-SP-SANTO ANDRÉ-CENTRO-383 5252 - BESNI-SP-SÃO PAULO-SANTO AMARO-80 1769 - BESNI-SP-SÃO PAULO-VILA NOVA CACHOEIRINHA-417 2462 - BESNI-SP-SÃO PAULO-CIDADE NITRO OPERÁRIA-655 1448 - BESNI-SP-SÃO PAULO-SHOPPING METRÔ ITAQUERA-LOJA 239 E 240 5192 - BESNI-SP-SÃO VICENTE-CENTRO-410/420","channel":"FAMILY FOOTWEAR","requestDate":"2025-05-15","executionDate":"2025-12-12","lastUpdateDate":"2025-12-12","description":"TESTEIRAS PERSONALIZADAS","score":"SCORE TRADE 2","cluster":"","doors":11,"investment":10630.85,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-05-15","plannedEnd":"2025-12-12","hasAdjustment":false,"hasRefaction":false},{"id":3,"projectName":"KATUXA — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"KATUXA","storeName":"KATUXA","channel":"FAMILY FOOTWEAR","requestDate":"2025-04-07","executionDate":"2025-04-07","lastUpdateDate":"2025-07-04","description":"CAPAS DE PEGBOARD PERSONALIZADAS E PONTOS FOCAIS","score":"SCORE TRADE 2","cluster":"","doors":43,"investment":0,"status":"STAND BY","stage":"Orçamento","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-04-07","plannedEnd":"2025-05-15","hasAdjustment":false,"hasRefaction":false},{"id":4,"projectName":"LOJAS SILVA — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"LOJAS SILVA","storeName":"LOJAS SILVA","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-26","executionDate":"2026-08-26","lastUpdateDate":"2026-09-02","description":"COMUNICAÇÃO VISUAL","score":"SEM SCORE","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Criação do projeto","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-08-26","plannedEnd":"1900-01-04","hasAdjustment":false,"hasRefaction":false},{"id":5,"projectName":"SAPATARIA SHOW — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"OLYMPIKUS","network":"SAPATARIA SHOW","storeName":"SAPATARIA SHOW","channel":"FAMILY FOOTWEAR","requestDate":"2026-09-21","executionDate":"2026-09-21","lastUpdateDate":"2026-09-23","description":"MANUTENÇÃO","score":"","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Orçamento","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-09-21","plannedEnd":"2026-09-16","hasAdjustment":false,"hasRefaction":false},{"id":6,"projectName":"7440 - POLYELLE-GO-VALPARAÍSO DE GOIÁS-VALPARAÍSO 1-S/N — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"POLYELLE","storeName":"7440 - POLYELLE-GO-VALPARAÍSO DE GOIÁS-VALPARAÍSO 1-S/N","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-17","executionDate":"2026-09-10","lastUpdateDate":"2026-09-29","description":"PERSONALIZAÇÃO","score":"","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do cliente","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-09-10","plannedEnd":"1900-01-04","hasAdjustment":false,"hasRefaction":false},{"id":7,"projectName":"NÃO TEM — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"RADAN","storeName":"NÃO TEM","channel":"FAMILY FOOTWEAR","requestDate":"2026-09-08","executionDate":"2026-09-18","lastUpdateDate":"2026-09-17","description":"SIS","score":"SEM SCORE","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Ajuste","stageStatus":"EM ANDAMENTO","stageStart":"2026-09-18","blocker":"","startDate":"2026-09-08","plannedEnd":"","hasAdjustment":true,"hasRefaction":false},{"id":8,"projectName":"NÃO TEM — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"LOJAS SILVA","storeName":"NÃO TEM","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-26","executionDate":"2026-08-28","lastUpdateDate":"2026-09-23","description":"COMUNICAÇÃO VISUAL","score":"SEM SCORE","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Ajuste","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-08-28","plannedEnd":"1900-01-04","hasAdjustment":true,"hasRefaction":false},{"id":9,"projectName":"4611 - PONTAL-SP-GUARULHOS-SHOPPING INTERNACIONAL GUARULHOS-225 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"PONTAL","storeName":"4611 - PONTAL-SP-GUARULHOS-SHOPPING INTERNACIONAL GUARULHOS-225","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-27","executionDate":"2026-08-27","lastUpdateDate":"2026-09-09","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"AGUARDANDO MEDIDAS VT","startDate":"2026-08-27","plannedEnd":"1900-01-03","hasAdjustment":false,"hasRefaction":false},{"id":10,"projectName":"2402 - PONTAL-SP-SÃO PAULO-SHOPPING ARICANDUVA-LOJA 32 E 33 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"PONTAL","storeName":"2402 - PONTAL-SP-SÃO PAULO-SHOPPING ARICANDUVA-LOJA 32 E 33","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-20","executionDate":"2026-09-21","lastUpdateDate":"2026-09-21","description":"VITRINE","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-08-20","plannedEnd":"2026-09-21","hasAdjustment":false,"hasRefaction":false},{"id":11,"projectName":"4537 - MEGA LOS SPORT-ES- VILA VELHA-BOULEVARD SHOPPING VILA VELHA-LOJAS D 108/109 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Média","brand":"OLYMPIKUS","network":"LOS SPORT","storeName":"4537 - MEGA LOS SPORT-ES- VILA VELHA-BOULEVARD SHOPPING VILA VELHA-LOJAS D 108/109","channel":"SPORTING GOODS","requestDate":"2026-08-20","executionDate":"2026-08-20","lastUpdateDate":"2026-09-30","description":"SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do cliente","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-08-20","plannedEnd":"1900-01-04","hasAdjustment":true,"hasRefaction":false},{"id":12,"projectName":"1762 - VISUAL FASHION-AP-MACAPÁ-CENTRAL-387 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"VISUAL FASHION","storeName":"1762 - VISUAL FASHION-AP-MACAPÁ-CENTRAL-387","channel":"FAMILY FOOTWEAR","requestDate":"","executionDate":"","lastUpdateDate":"2026-09-15","description":"MANUTENÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"","plannedEnd":"","hasAdjustment":false,"hasRefaction":false},{"id":13,"projectName":"HUMANITARIAN — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"OLYMPIKUS","network":"HUMANITARIAN","storeName":"HUMANITARIAN","channel":"SPORTING GOODS","requestDate":"","executionDate":"","lastUpdateDate":"","description":"COMUNICAÇÃO VISUAL E VITRINE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do cliente","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"","plannedEnd":"","hasAdjustment":false,"hasRefaction":false},{"id":14,"projectName":"10668 - KIK-NOVA IGUAÇU-RJ-SHOPPING PEDREIRA NOVA IGUAÇU-1111 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"KIK CALÇADOS","storeName":"10668 - KIK-NOVA IGUAÇU-RJ-SHOPPING PEDREIRA NOVA IGUAÇU-1111","channel":"FAMILY FOOTWEAR","requestDate":"","executionDate":"2026-08-05","lastUpdateDate":"2026-09-24","description":"SIS E VITRINE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":10760,"status":"EM ANDAMENTO","stage":"Ajuste","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-08-05","plannedEnd":"2026-09-24","hasAdjustment":true,"hasRefaction":false},{"id":15,"projectName":"10659-TENIS RACE-RJ-RIO DE JANEIRO-CENTRO-51 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"TENIS RACE","storeName":"10659-TENIS RACE-RJ-RIO DE JANEIRO-CENTRO-51","channel":"SPORTING GOODS","requestDate":"2026-07-30","executionDate":"2026-09-04","lastUpdateDate":"2026-09-04","description":"SIS","score":"SEM SCORE","cluster":"","doors":1,"investment":5080,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-07-31","plannedEnd":"2026-09-04","hasAdjustment":false,"hasRefaction":false},{"id":16,"projectName":"TENNIS PLACE - CERRADO — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"TENNIS PLACE - CERRADO","storeName":"TENNIS PLACE - CERRADO","channel":"SPORTING GOODS","requestDate":"2026-06-22","executionDate":"2026-08-10","lastUpdateDate":"2026-08-10","description":"SIS 3 MARCAS","score":"SCORE TRADE 2","cluster":"","doors":2,"investment":17791,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-22","plannedEnd":"2026-08-10","hasAdjustment":false,"hasRefaction":false},{"id":17,"projectName":"TENNIS PLACE - APARECIDA — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"TENNIS PLACE - APARECIDA","storeName":"TENNIS PLACE - APARECIDA","channel":"SPORTING GOODS","requestDate":"2026-06-22","executionDate":"2026-08-24","lastUpdateDate":"2026-08-24","description":"SIS OLYMPIKUS E MIZUNO","score":"SCORE TRADE 2","cluster":"","doors":2,"investment":18077,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-22","plannedEnd":"2026-08-24","hasAdjustment":false,"hasRefaction":false},{"id":18,"projectName":"9112 - TENNIS PLACE-MG-BELO HORIZONTE-BH SHOPPING-7515 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"TENNIS PLACE","storeName":"9112 - TENNIS PLACE-MG-BELO HORIZONTE-BH SHOPPING-7515","channel":"SPORTING GOODS","requestDate":"2026-06-01","executionDate":"2026-06-01","lastUpdateDate":"2026-06-11","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"","startDate":"2026-06-01","plannedEnd":"2026-06-05","hasAdjustment":false,"hasRefaction":false},{"id":19,"projectName":"9923 - BH OUTLET MIZ-MG-BELO HORIZONTE-BELVEDERE-7515 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"TENNIS PLACE","storeName":"9923 - BH OUTLET MIZ-MG-BELO HORIZONTE-BELVEDERE-7515","channel":"SPORT INSPIRED","requestDate":"2025-05-19","executionDate":"2025-09-08","lastUpdateDate":"2025-09-08","description":"ALTERAÇÃO DE SIS MIZUNO PARA SIS OLYMPIKUS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":8276.5,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-05-19","plannedEnd":"2025-09-08","hasAdjustment":false,"hasRefaction":false},{"id":20,"projectName":"7184 - TAKA TAKA-SP-SÃO PAULO-SANTANA-2242 — SIMPLES","projectType":"SIMPLES","priority":"Média","brand":"OLYMPIKUS","network":"TAKA TAKA","storeName":"7184 - TAKA TAKA-SP-SÃO PAULO-SANTANA-2242","channel":"FAMILY FOOTWEAR","requestDate":"2025-05-27","executionDate":"2025-10-07","lastUpdateDate":"2025-10-07","description":"VITRINE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":6933.18,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-05-27","plannedEnd":"2025-10-07","hasAdjustment":false,"hasRefaction":false},{"id":21,"projectName":"3456 - ESPOSENDE CALÇADOS-PE-RECIFE-SHOPPING BOA VISTA-LOJA 27 A 30 9060 - ESPOSENDE CALÇADOS-PE-RECIFE-AFOGADOS- 176 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"ESPOSENDE CALÇADOS","storeName":"3456 - ESPOSENDE CALÇADOS-PE-RECIFE-SHOPPING BOA VISTA-LOJA 27 A 30 9060 - ESPOSENDE CALÇADOS-PE-RECIFE-AFOGADOS- 176","channel":"FAMILY FOOTWEAR","requestDate":"2025-02-26","executionDate":"2025-09-25","lastUpdateDate":"2025-09-25","description":"ATUALIZAÇÃO DE IMAGEM DE SIS","score":"SCORE TRADE 2","cluster":"","doors":2,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-02-26","plannedEnd":"2025-09-25","hasAdjustment":false,"hasRefaction":false},{"id":22,"projectName":"JASPER — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"JASPER","storeName":"JASPER","channel":"SPORTING GOODS","requestDate":"2025-05-26","executionDate":"2025-05-26","lastUpdateDate":"2025-10-10","description":"MOBILIÁRIO","score":"SEM ATENDIMENTO","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-05-26","plannedEnd":"2025-10-14","hasAdjustment":false,"hasRefaction":false},{"id":23,"projectName":"WORLD TENNIS-SP-SOROCABA-SHOPPING IGUATEMI ESPLANADA-LOJA 508 E 509 ​ — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"WORLD TÊNIS","storeName":"WORLD TENNIS-SP-SOROCABA-SHOPPING IGUATEMI ESPLANADA-LOJA 508 E 509 ​","channel":"SPORTING GOODS","requestDate":"2025-06-26","executionDate":"2025-06-26","lastUpdateDate":"2025-09-10","description":"SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-06-26","plannedEnd":"2025-09-12","hasAdjustment":false,"hasRefaction":false},{"id":24,"projectName":"3961 - KALLAN-SP-SÃO BERNARDO DO CAMPO-CENTRO-1144 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"KALLAN","storeName":"3961 - KALLAN-SP-SÃO BERNARDO DO CAMPO-CENTRO-1144","channel":"FAMILY FOOTWEAR","requestDate":"2025-07-07","executionDate":"2025-10-28","lastUpdateDate":"2025-10-28","description":"COMUNICAÇÃO VISUAL PARA AREA DE MEIAS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":1295.07,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-07","plannedEnd":"2025-10-28","hasAdjustment":false,"hasRefaction":false},{"id":25,"projectName":"7775 - AREIÃO ESPORTES-GO-GOIÂNIA-ST. MARISTA-2000 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"AREIÃO","storeName":"7775 - AREIÃO ESPORTES-GO-GOIÂNIA-ST. MARISTA-2000","channel":"SPORTING GOODS","requestDate":"2025-07-05","executionDate":"2025-10-21","lastUpdateDate":"2025-10-21","description":"ATUALIZAÇÃO DE MATERIAL DA VITRINE E ADESIVAÇÃO DE PAREDE INTERNA","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":4473.23,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-05","plannedEnd":"2025-10-21","hasAdjustment":false,"hasRefaction":false},{"id":26,"projectName":"2150 - POLYELLE-MA-SÃO LUÍS-RIO ANIL SHOPPING-LOJA 6 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"POLYELLE","storeName":"2150 - POLYELLE-MA-SÃO LUÍS-RIO ANIL SHOPPING-LOJA 6","channel":"FAMILY FOOTWEAR","requestDate":"2025-07-08","executionDate":"2025-12-01","lastUpdateDate":"2025-12-01","description":"ADESIVAÇÃO DE PAREDE DE SLAT","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":1884.37,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-08","plannedEnd":"2025-12-01","hasAdjustment":false,"hasRefaction":false},{"id":27,"projectName":"4358 - WORLD TENNIS-SP-SUZANO-SHOPPING SUZANO-LOJA 96 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"WORLD TÊNIS","storeName":"4358 - WORLD TENNIS-SP-SUZANO-SHOPPING SUZANO-LOJA 96","channel":"SPORTING GOODS","requestDate":"2025-07-07","executionDate":"2025-07-07","lastUpdateDate":"2025-09-23","description":"SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"AGUARDANDO RETORNO VULCABRAS","startDate":"2025-07-07","plannedEnd":"2025-09-25","hasAdjustment":false,"hasRefaction":false},{"id":28,"projectName":"VARIAS LOJAS — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"BESNI (IMAGENS VITRINE)","storeName":"VARIAS LOJAS","channel":"FAMILY FOOTWEAR","requestDate":"2025-07-30","executionDate":"2025-10-27","lastUpdateDate":"2025-10-27","description":"ATUALIZAÇÃO DE IMAGEM EM PROJETOS DE VITRINE","score":"SCORE TRADE 2","cluster":"","doors":13,"investment":9913.9,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-30","plannedEnd":"2025-10-27","hasAdjustment":false,"hasRefaction":false},{"id":29,"projectName":"TOP SPORT — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"TOP SPORT","storeName":"TOP SPORT","channel":"SPORTING GOODS","requestDate":"2025-07-31","executionDate":"2025-07-31","lastUpdateDate":"2025-10-30","description":"PERSONALIZAÇÃO DE PAREDE DE CALÇADOS","score":"SEM ATENDIMENTO","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"AGUARDANDO APROVAÇÃO","startDate":"2025-07-31","plannedEnd":"2025-11-03","hasAdjustment":false,"hasRefaction":false},{"id":30,"projectName":"2042 - DENY SPORTS-SP-SÃO PAULO-SHOPPING ELDORADO-LOJA 226 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"DENY SPORTS","storeName":"2042 - DENY SPORTS-SP-SÃO PAULO-SHOPPING ELDORADO-LOJA 226","channel":"SPORTING GOODS","requestDate":"2025-07-03","executionDate":"2025-10-15","lastUpdateDate":"2025-10-15","description":"MOBILIARIO DE VITRINE","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":8696.76,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-03","plannedEnd":"2025-10-15","hasAdjustment":false,"hasRefaction":false},{"id":31,"projectName":"4520 - CIA DO PÉ-SC-BRUSQUE-CENTRO-181 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"CIA DO PÉ","storeName":"4520 - CIA DO PÉ-SC-BRUSQUE-CENTRO-181","channel":"FAMILY FOOTWEAR","requestDate":"2025-08-14","executionDate":"2026-01-15","lastUpdateDate":"2026-01-15","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":1460,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-08-14","plannedEnd":"2026-01-15","hasAdjustment":false,"hasRefaction":false},{"id":32,"projectName":"6832 - RBE-HERMELU-RS-FARROUPILHA-CENTRO-333 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"HERMELU","storeName":"6832 - RBE-HERMELU-RS-FARROUPILHA-CENTRO-333","channel":"SPORTING GOODS","requestDate":"2025-09-11","executionDate":"2025-10-30","lastUpdateDate":"2025-10-30","description":"TESTEIRAS PERSONALIZADAS PARA PILAR E ADESIVAÇÃO DE PAREDE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":4625.15,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-09-11","plannedEnd":"2025-10-30","hasAdjustment":false,"hasRefaction":false},{"id":33,"projectName":"AVENIDA — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"AVENIDA","storeName":"AVENIDA","channel":"FAMILY FOOTWEAR","requestDate":"2025-08-20","executionDate":"2025-10-13","lastUpdateDate":"2025-10-13","description":"TESTEIRAS PERSONALIZADAS PARA GÔNDOLAS","score":"SEM ATENDIMENTO","cluster":"","doors":12,"investment":8313.2,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-08-20","plannedEnd":"2025-10-13","hasAdjustment":false,"hasRefaction":false},{"id":34,"projectName":"MASTER JUAZEIRO/MASTER IRECÊ — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"GRUPO MASTER","storeName":"MASTER JUAZEIRO/MASTER IRECÊ","channel":"SEM CLASSICIFAÇÃO","requestDate":"2025-08-21","executionDate":"2025-10-09","lastUpdateDate":"2025-10-09","description":"REMOÇÃO DE SIS EM JUAZEIRO PARA INSTALAR EM IRECÊ","score":"SEM ATENDIMENTO","cluster":"","doors":1,"investment":2400,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-08-21","plannedEnd":"2025-10-09","hasAdjustment":false,"hasRefaction":false},{"id":35,"projectName":"2081 - Mg Sports 02-Sp- Franca-Franca Shopping Center-Loja 421 E 422 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"MG SPORTS","storeName":"2081 - Mg Sports 02-Sp- Franca-Franca Shopping Center-Loja 421 E 422","channel":"SPORTING GOODS","requestDate":"2025-10-16","executionDate":"2025-10-16","lastUpdateDate":"2025-11-21","description":"PERSONALIZAÇÃO DE COMUNICAÇÃO PARA ESPAÇO DE EXPOSIÇÃO DO PRODUTO CORRE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"AGUARDANDO RETORNO VULCABRAS","startDate":"2025-10-16","plannedEnd":"2025-11-25","hasAdjustment":false,"hasRefaction":false},{"id":36,"projectName":"3165 - Mundial-Sp-Osasco-Centro-370 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"MUNDIAL OSASCO","storeName":"3165 - Mundial-Sp-Osasco-Centro-370","channel":"FAMILY FOOTWEAR","requestDate":"2025-09-10","executionDate":"2025-11-12","lastUpdateDate":"2025-11-12","description":"PERSONALIZAÇÃO DE VITRINE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":1335.73,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-09-10","plannedEnd":"2025-11-12","hasAdjustment":false,"hasRefaction":false},{"id":37,"projectName":"190 - BESNI-SP-SÃO PAULO-SANTO AMARO-10 — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"OLYMPIKUS","network":"BESNI (PILAR)","storeName":"190 - BESNI-SP-SÃO PAULO-SANTO AMARO-10","channel":"FAMILY FOOTWEAR","requestDate":"2025-09-05","executionDate":"2025-12-05","lastUpdateDate":"2025-12-05","description":"ATUALIZAÇÃO DE CORNER INSTALADO NO PILAR DA VITRINE","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":2430,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-09-05","plannedEnd":"2025-12-05","hasAdjustment":false,"hasRefaction":false},{"id":38,"projectName":"8363 - SPORT CITY-SP-TABOÃO DA SERRA-SHOPPING TABOÃO-LOJA 226/227/228/229 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"SPORT CITY","storeName":"8363 - SPORT CITY-SP-TABOÃO DA SERRA-SHOPPING TABOÃO-LOJA 226/227/228/229","channel":"SPORT INSPIRED","requestDate":"2026-03-23","executionDate":"2026-08-18","lastUpdateDate":"2026-08-18","description":"SIS OLYMPIKUS E MIZUNO","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":3060.92,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-03-23","plannedEnd":"2026-08-18","hasAdjustment":false,"hasRefaction":false},{"id":39,"projectName":"5802 - Makro Calçados-Rs-Caxias Do Sul-Centro-2582 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"MAKRO CALÇADOS","storeName":"5802 - Makro Calçados-Rs-Caxias Do Sul-Centro-2582","channel":"FAMILY FOOTWEAR","requestDate":"2025-10-16","executionDate":"2026-02-10","lastUpdateDate":"2026-02-10","description":"SIS","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":7603.95,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-10-16","plannedEnd":"2026-02-10","hasAdjustment":false,"hasRefaction":false},{"id":40,"projectName":"1564 - LUAR SPORTS-PI-TERESINA-SHOPPING RIO POTY-911 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"LUAR SPORTS","storeName":"1564 - LUAR SPORTS-PI-TERESINA-SHOPPING RIO POTY-911","channel":"SPORTING GOODS","requestDate":"2025-10-31","executionDate":"2026-02-16","lastUpdateDate":"2026-02-16","description":"MANUTENÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":2678,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-10-31","plannedEnd":"2026-02-16","hasAdjustment":false,"hasRefaction":false},{"id":41,"projectName":"3281 - BORGES CALÇADOS-BA-SALVADOR-SÃO CAETANO-LOJA 356 T — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"BORGES CALÇADOS","storeName":"3281 - BORGES CALÇADOS-BA-SALVADOR-SÃO CAETANO-LOJA 356 T","channel":"FAMILY FOOTWEAR","requestDate":"2025-10-06","executionDate":"2025-10-06","lastUpdateDate":"2026-02-04","description":"MOBILIÁRIO ESPECIAL PARA LOJA","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"AGUARDANDO APROVAÇÃO","startDate":"2025-10-06","plannedEnd":"2025-12-02","hasAdjustment":false,"hasRefaction":false},{"id":42,"projectName":"5327 - Y AGITA-PR-LONDRINA-CENTRO-854 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"Y AGITA","storeName":"5327 - Y AGITA-PR-LONDRINA-CENTRO-854","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-14","executionDate":"2026-07-29","lastUpdateDate":"2026-07-29","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":5435.62,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-14","plannedEnd":"2026-07-29","hasAdjustment":false,"hasRefaction":false},{"id":43,"projectName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"SPORT SHOW BELÉM","storeName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207","channel":"SPORTING GOODS","requestDate":"2025-11-05","executionDate":"2026-04-03","lastUpdateDate":"2026-04-03","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":11316.87,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-11-05","plannedEnd":"2026-04-03","hasAdjustment":false,"hasRefaction":false},{"id":44,"projectName":"5081 - DEGRAUS CENTRO RUA GRANDE / 5315 – DEGRAUS SPORTS - SÃO JOSÉ DO RIBAMAR – SHOPPING PATIO NORTE — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"DEGRAUS","storeName":"5081 - DEGRAUS CENTRO RUA GRANDE / 5315 – DEGRAUS SPORTS - SÃO JOSÉ DO RIBAMAR – SHOPPING PATIO NORTE","channel":"SPORTING GOODS","requestDate":"2026-01-23","executionDate":"2026-02-09","lastUpdateDate":"2026-02-09","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":2,"investment":945,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-01-23","plannedEnd":"2026-02-09","hasAdjustment":false,"hasRefaction":false},{"id":45,"projectName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"RUNNING LAND","storeName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882","channel":"PERFORMANCE SPECIALTY","requestDate":"2026-01-28","executionDate":"2026-03-11","lastUpdateDate":"2026-03-12","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":3796.87,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-01-28","plannedEnd":"2026-03-11","hasAdjustment":false,"hasRefaction":false},{"id":46,"projectName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"OLYMPIKUS","network":"RENSZ","storeName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15","channel":"SPORTING GOODS","requestDate":"2026-05-05","executionDate":"2026-05-05","lastUpdateDate":"2026-08-14","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do orçamento","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"Não aprovado de onde sairá verba","startDate":"2026-05-05","plannedEnd":"2026-06-24","hasAdjustment":false,"hasRefaction":false},{"id":47,"projectName":"1500 - VISUAL CALÇADOS-BA-VITÓRIA DA CONQUISTA-CENTRO-188 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"VISUAL CALÇADOS","storeName":"1500 - VISUAL CALÇADOS-BA-VITÓRIA DA CONQUISTA-CENTRO-188","channel":"FAMILY FOOTWEAR","requestDate":"2026-02-11","executionDate":"2026-03-24","lastUpdateDate":"2026-03-24","description":"VITRINE","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":605.9,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-11","plannedEnd":"2026-03-24","hasAdjustment":false,"hasRefaction":false},{"id":48,"projectName":"9883 - ABY'S SPORT-AL-MACEIÓ-PONTA VERDE-431 — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"OLYMPIKUS","network":"ABYS","storeName":"9883 - ABY'S SPORT-AL-MACEIÓ-PONTA VERDE-431","channel":"SPORTING GOODS","requestDate":"2026-02-20","executionDate":"2026-02-26","lastUpdateDate":"2026-02-26","description":"PROJETO ESPECIAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-20","plannedEnd":"2026-02-26","hasAdjustment":false,"hasRefaction":false},{"id":49,"projectName":"K11-São Bernardo do Campo - COD. INVOLVES 3961. K59–Salvador/BA - COD. INVOLVES 10071. K16–Santo André - COD. INVOLVES 1268. K15–Praia Grande - COD. INVOLVES 369. K12–Santos - COD. INVOLVES 1576 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"KALLAN (CURADORIA)","storeName":"K11-São Bernardo do Campo - COD. INVOLVES 3961. K59–Salvador/BA - COD. INVOLVES 10071. K16–Santo André - COD. INVOLVES 1268. K15–Praia Grande - COD. INVOLVES 369. K12–Santos - COD. INVOLVES 1576","channel":"FAMILY FOOTWEAR","requestDate":"2026-02-26","executionDate":"2026-06-02","lastUpdateDate":"2026-06-02","description":"CURADORIA PERSONALIZADA","score":"SCORE TRADE 2","cluster":"","doors":5,"investment":5560,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-26","plannedEnd":"2026-06-02","hasAdjustment":false,"hasRefaction":false},{"id":50,"projectName":"7076 - PREMIUM SPORTS & FITNESS-SP-SANTOS-GONZAGA-SHOPPING PARQUE BALNEÁRIO-LOJA 02 TERREO — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"PREMIUM SPORTS","storeName":"7076 - PREMIUM SPORTS & FITNESS-SP-SANTOS-GONZAGA-SHOPPING PARQUE BALNEÁRIO-LOJA 02 TERREO","channel":"SPORTING GOODS","requestDate":"2026-03-10","executionDate":"2026-03-10","lastUpdateDate":"2026-03-26","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"DECLINADO","stage":"Criação do projeto","stageStatus":"DECLINADO","stageStart":"","blocker":"AGUARDANDO APROVAÇÃO","startDate":"2026-03-10","plannedEnd":"2026-03-17","hasAdjustment":false,"hasRefaction":false},{"id":51,"projectName":"8519 - PLANETA CORRIDA-MG-JUIZ DE FORA-CENTRO-558 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Média","brand":"OLYMPIKUS","network":"PLANETA CORRIDA","storeName":"8519 - PLANETA CORRIDA-MG-JUIZ DE FORA-CENTRO-558","channel":"SPORTING GOODS","requestDate":"2026-03-26","executionDate":"2026-03-26","lastUpdateDate":"2026-04-27","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"DECLINADO","stage":"Ajuste","stageStatus":"DECLINADO","stageStart":"","blocker":"","startDate":"2026-03-26","plannedEnd":"2026-04-23","hasAdjustment":false,"hasRefaction":false},{"id":52,"projectName":"2715 - POLYELLE-MA-SÃO JOSÉ DO RIABAMAR-PÁTIO NORTE SHOPPING-LOJA 08 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"POLYELLE","storeName":"2715 - POLYELLE-MA-SÃO JOSÉ DO RIABAMAR-PÁTIO NORTE SHOPPING-LOJA 08","channel":"FAMILY FOOTWEAR","requestDate":"2026-03-31","executionDate":"2026-06-03","lastUpdateDate":"2026-06-03","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":987,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-03-31","plannedEnd":"2026-06-03","hasAdjustment":false,"hasRefaction":false},{"id":53,"projectName":"437 - SAPATARIA NOVA-CE-FORTALEZA-NORTH SHOPPING FORTALEZA-LOJA 03 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"SAPATARIA NOVA","storeName":"437 - SAPATARIA NOVA-CE-FORTALEZA-NORTH SHOPPING FORTALEZA-LOJA 03","channel":"FAMILY FOOTWEAR","requestDate":"2026-04-08","executionDate":"2026-04-08","lastUpdateDate":"2026-09-25","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do orçamento","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"VERBA SAIRÁ DE COOPERADAS E AINDA NÃO FOI APROVADA","startDate":"2026-04-08","plannedEnd":"2026-04-22","hasAdjustment":false,"hasRefaction":false},{"id":54,"projectName":"7210 - HOME SPORT CENTER-SC-JARAGUÁ DO SUL-CENTRO-SALA 2-657 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"HOME SPORT CENTER","storeName":"7210 - HOME SPORT CENTER-SC-JARAGUÁ DO SUL-CENTRO-SALA 2-657","channel":"SPORTING GOODS","requestDate":"2026-04-09","executionDate":"2026-07-28","lastUpdateDate":"2026-07-28","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":2105.23,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-04-09","plannedEnd":"2026-07-28","hasAdjustment":true,"hasRefaction":false},{"id":55,"projectName":"VARIAS LOJAS — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"BESNI","storeName":"VARIAS LOJAS","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-07","executionDate":"2026-07-24","lastUpdateDate":"2026-07-24","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":11,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-07","plannedEnd":"2026-07-24","hasAdjustment":false,"hasRefaction":false},{"id":56,"projectName":"2751 - LEVE CALÇADOS-PR-FRANCISCO BELTRÃO-CENTRO-558 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"LEVE CALÇADOS","storeName":"2751 - LEVE CALÇADOS-PR-FRANCISCO BELTRÃO-CENTRO-558","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-13","executionDate":"2026-09-08","lastUpdateDate":"2026-09-08","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":2228.14,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-13","plannedEnd":"2026-09-08","hasAdjustment":false,"hasRefaction":false},{"id":57,"projectName":"5140 - HUMANITARIAN-RJ-DUQUE DE CAXIAS-CENTRO-417 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"HUMANITARIAN (TROCA DE ARTES)","storeName":"5140 - HUMANITARIAN-RJ-DUQUE DE CAXIAS-CENTRO-417","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-27","executionDate":"2026-06-02","lastUpdateDate":"2026-06-05","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-27","plannedEnd":"2026-06-02","hasAdjustment":false,"hasRefaction":false},{"id":58,"projectName":"4848 - FORMOSA MIX-PA-BELÉM-TELÉGRAFO-580 — SIMPLES","projectType":"SIMPLES","priority":"Média","brand":"OLYMPIKUS","network":"FORMOSA MIX MAGAZINE","storeName":"4848 - FORMOSA MIX-PA-BELÉM-TELÉGRAFO-580","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-15","executionDate":"2026-05-15","lastUpdateDate":"2026-07-17","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do cliente","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"NÃO TIVEMOS RETORNO DE CANAL SOBRE A R01","startDate":"2026-05-15","plannedEnd":"2026-07-23","hasAdjustment":false,"hasRefaction":false},{"id":59,"projectName":"5081 - DEGRAUS RUA OSWALDO CRUZ, 56, CENTRO 1991 - DEGRAUS SPORT 02-MA-SÃO LUÍS-SÃO LUIS SHOPPING-LOJA 184 5315 - DEGRAUS SPORT 02-MA-SÃO JOSÉ DE RIBAMAR-PÁTIO NORTE SHOPPING-LOJA 01 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"MIZUNO","network":"DEGRAUS","storeName":"5081 - DEGRAUS RUA OSWALDO CRUZ, 56, CENTRO 1991 - DEGRAUS SPORT 02-MA-SÃO LUÍS-SÃO LUIS SHOPPING-LOJA 184 5315 - DEGRAUS SPORT 02-MA-SÃO JOSÉ DE RIBAMAR-PÁTIO NORTE SHOPPING-LOJA 01","channel":"SPORTING GOODS","requestDate":"2025-06-05","executionDate":"2026-01-22","lastUpdateDate":"2026-01-22","description":"SIS","score":"SCORE TRADE 1","cluster":"","doors":3,"investment":53480.48,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-06-05","plannedEnd":"2026-01-22","hasAdjustment":false,"hasRefaction":false},{"id":60,"projectName":"4489 - SHOEBIZ-SP-SÃO PAULO-LAPA-173 — SIMPLES","projectType":"SIMPLES","priority":"Média","brand":"OLYMPIKUS","network":"SHOEBIZ","storeName":"4489 - SHOEBIZ-SP-SÃO PAULO-LAPA-173","channel":"FAMILY FOOTWEAR","requestDate":"2026-05-26","executionDate":"2026-07-28","lastUpdateDate":"2026-07-28","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":1709.05,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-26","plannedEnd":"2026-07-28","hasAdjustment":false,"hasRefaction":false},{"id":61,"projectName":"4656 - BABY-SP-CAMPINAS-CENTRO-479 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"OLYMPIKUS","network":"BABY CALÇADOS","storeName":"4656 - BABY-SP-CAMPINAS-CENTRO-479","channel":"FAMILY FOOTWEAR","requestDate":"2026-06-08","executionDate":"2026-07-17","lastUpdateDate":"2026-07-17","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":1124,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-08","plannedEnd":"2026-07-17","hasAdjustment":false,"hasRefaction":false},{"id":62,"projectName":"10647 - UFIT BRASIL-SP-SÃO JOSÉ DOS CAMPOS - 5101 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"OLYMPIKUS","network":"UFIT BRASIL","storeName":"10647 - UFIT BRASIL-SP-SÃO JOSÉ DOS CAMPOS - 5101","channel":"SPORTING GOODS","requestDate":"2026-06-11","executionDate":"2026-07-03","lastUpdateDate":"2026-07-03","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":1600,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-11","plannedEnd":"2026-07-03","hasAdjustment":false,"hasRefaction":false},{"id":63,"projectName":"277 - OSCAR TÊNIS-SP-SÃO JOSÉ DOS CAMPOS-VALE SUL SHOPPING-LOJA SUC 102 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"OSCAR TENIS","storeName":"277 - OSCAR TÊNIS-SP-SÃO JOSÉ DOS CAMPOS-VALE SUL SHOPPING-LOJA SUC 102","channel":"SPORTING GOODS","requestDate":"2026-06-09","executionDate":"2026-06-17","lastUpdateDate":"2026-06-17","description":"REMOÇÃO DE SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":1088,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-09","plannedEnd":"2026-06-17","hasAdjustment":false,"hasRefaction":false},{"id":64,"projectName":"8505 - GLOBO MAGAZINE-MG-PASSOS-CENTRO-108 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"OLYMPIKUS","network":"GLOBO MAGAZINE","storeName":"8505 - GLOBO MAGAZINE-MG-PASSOS-CENTRO-108","channel":"SPORTING GOODS","requestDate":"2026-06-22","executionDate":"2026-06-29","lastUpdateDate":"2026-06-29","description":"REMOÇÃO DE SIS","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":3465,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-22","plannedEnd":"2026-06-29","hasAdjustment":false,"hasRefaction":false},{"id":65,"projectName":"7184 - TAKA TAKA-SP-SÃO PAULO-SANTANA-2242 — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"OLYMPIKUS","network":"TAKA TAKA","storeName":"7184 - TAKA TAKA-SP-SÃO PAULO-SANTANA-2242","channel":"FAMILY FOOTWEAR","requestDate":"2026-07-03","executionDate":"2026-07-27","lastUpdateDate":"2026-07-27","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":2831.2,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-07-03","plannedEnd":"2026-07-27","hasAdjustment":false,"hasRefaction":false},{"id":66,"projectName":"MACEIÓ — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"OLYMPIKUS","network":"DI SANTINNI","storeName":"MACEIÓ","channel":"FAMILY FOOTWEAR","requestDate":"2026-07-01","executionDate":"2026-07-01","lastUpdateDate":"2026-08-18","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do orçamento","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-07-01","plannedEnd":"2026-08-11","hasAdjustment":false,"hasRefaction":false},{"id":67,"projectName":"7369 - FREE CORNER-DF-BRASÍLIA-SHOPPING TERRAÇO-5 — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"MIZUNO","network":"FREE CORNER","storeName":"7369 - FREE CORNER-DF-BRASÍLIA-SHOPPING TERRAÇO-5","channel":"SPORTING GOODS","requestDate":"2026-09-18","executionDate":"2026-09-18","lastUpdateDate":"2026-09-21","description":"REMOÇÃO DE SIS","score":"","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-09-18","plannedEnd":"1900-01-01","hasAdjustment":false,"hasRefaction":false},{"id":68,"projectName":"7440 - POLYELLE-GO-VALPARAÍSO DE GOIÁS-VALPARAÍSO 1-S/N — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"POLYELLE","storeName":"7440 - POLYELLE-GO-VALPARAÍSO DE GOIÁS-VALPARAÍSO 1-S/N","channel":"FAMILY FOOTWEAR","requestDate":"2026-08-17","executionDate":"2026-09-10","lastUpdateDate":"2026-09-25","description":"PERSONALIZAÇÃO","score":"","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Aprovação do cliente","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-09-10","plannedEnd":"1900-01-04","hasAdjustment":false,"hasRefaction":false},{"id":69,"projectName":"PONTAL — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"PONTAL","storeName":"PONTAL","channel":"","requestDate":"2026-08-27","executionDate":"2026-08-27","lastUpdateDate":"2026-08-27","description":"PERSONALIZAÇÃO","score":"","cluster":"","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"","plannedEnd":"","hasAdjustment":false,"hasRefaction":false},{"id":70,"projectName":"3593 - DENY SPORTS-SP-SÃO PAULO-SHOPPING PÁTIO HIGIENÓPOLIS-LOJA 261/262/263 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"MIZUNO","network":"DENY - HIGIENÓPOLIS","storeName":"3593 - DENY SPORTS-SP-SÃO PAULO-SHOPPING PÁTIO HIGIENÓPOLIS-LOJA 261/262/263","channel":"SPORTING GOODS","requestDate":"2026-06-16","executionDate":"2026-07-06","lastUpdateDate":"2026-07-06","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-16","plannedEnd":"2026-07-06","hasAdjustment":false,"hasRefaction":false},{"id":71,"projectName":"Cerrado e Aparecida. — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"MIZUNO","network":"TENNIS PLACE - CERRADO","storeName":"Cerrado e Aparecida.","channel":"SPORTING GOODS","requestDate":"2026-06-19","executionDate":"2026-08-12","lastUpdateDate":"2026-08-12","description":"SIS 3 MARCAS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":14613,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-22","plannedEnd":"2026-08-12","hasAdjustment":false,"hasRefaction":false},{"id":72,"projectName":"Cerrado e Aparecida. — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"MIZUNO","network":"TENNIS PLACE - APARECIDA","storeName":"Cerrado e Aparecida.","channel":"SPORTING GOODS","requestDate":"2026-06-19","executionDate":"2026-08-26","lastUpdateDate":"2026-08-26","description":"SIS 3 MARCAS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":17199,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-22","plannedEnd":"2026-08-26","hasAdjustment":false,"hasRefaction":false},{"id":73,"projectName":"7075 - PREMIUM SPORTS & FITNESS-SP-SANTOS-GONZAGA-MIRAMAR SHOPPING CENTER-44 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"PREMIUM SPORTS (SANTOS)","storeName":"7075 - PREMIUM SPORTS & FITNESS-SP-SANTOS-GONZAGA-MIRAMAR SHOPPING CENTER-44","channel":"SPORTING GOODS","requestDate":"2026-05-22","executionDate":"2026-05-22","lastUpdateDate":"2026-06-02","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"","startDate":"2026-05-22","plannedEnd":"2026-05-28","hasAdjustment":false,"hasRefaction":false},{"id":74,"projectName":"3720 - HUMANITARIAN-SP-RIBEIRÃO PRETO-CENTRO-408 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"HUMANITARIAN - RIBEIRÃO","storeName":"3720 - HUMANITARIAN-SP-RIBEIRÃO PRETO-CENTRO-408","channel":"SPORTING GOODS","requestDate":"2026-05-14","executionDate":"2026-08-24","lastUpdateDate":"2026-08-24","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":2660,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-14","plannedEnd":"2026-08-24","hasAdjustment":false,"hasRefaction":false},{"id":75,"projectName":"82 - HUMANITARIAN-RJ-NOVA IGUAÇU-CENTRO-243 /5136 - HUMANITARIAN-RJ-DUQUE DE CAXIAS-CENTRO-318 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"MIZUNO","network":"HUMANITARIAN","storeName":"82 - HUMANITARIAN-RJ-NOVA IGUAÇU-CENTRO-243 /5136 - HUMANITARIAN-RJ-DUQUE DE CAXIAS-CENTRO-318","channel":"FAMILY FOOTWEAR","requestDate":"2025-05-29","executionDate":"2025-05-29","lastUpdateDate":"2025-10-08","description":"MONTAGEM DE SIS MIZUNO","score":"SCORE TRADE 2","cluster":"","doors":2,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-05-29","plannedEnd":"2025-10-10","hasAdjustment":false,"hasRefaction":false},{"id":76,"projectName":"4537 - LOS SPORT-ES- VILA VELHA-BOULEVARD SHOPPING VILA VELHA-LOJA 1076 1077 1078. — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"MEGA LOS SPORTS","storeName":"4537 - LOS SPORT-ES- VILA VELHA-BOULEVARD SHOPPING VILA VELHA-LOJA 1076 1077 1078.","channel":"SPORTING GOODS","requestDate":"2025-05-29","executionDate":"2025-11-27","lastUpdateDate":"2025-11-27","description":"ATUALIZAÇÃO DE ESPAÇO SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":16156,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-05-29","plannedEnd":"2025-11-27","hasAdjustment":false,"hasRefaction":false},{"id":77,"projectName":"5087 - HUMANITARIAN-MG-JUIZ DE FORA-CENTRO-711 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"MIZUNO","network":"HUMANITARIAN","storeName":"5087 - HUMANITARIAN-MG-JUIZ DE FORA-CENTRO-711","channel":"SPORTING GOODS","requestDate":"2025-06-17","executionDate":"2025-06-17","lastUpdateDate":"2025-10-08","description":"MONTAGEM SIS MIZUNO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-06-17","plannedEnd":"2025-10-10","hasAdjustment":false,"hasRefaction":false},{"id":78,"projectName":"3812 - TREMENDÃO ESPORTES-MG-UBERABA-SÃO BENEDITO-10 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"TREMENDÃO","storeName":"3812 - TREMENDÃO ESPORTES-MG-UBERABA-SÃO BENEDITO-10","channel":"SPORTING GOODS","requestDate":"2025-06-18","executionDate":"2025-06-18","lastUpdateDate":"2025-08-21","description":"ATUALIZAÇÃO DE ESPAÇO SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":7193.92,"status":"STAND BY","stage":"Criação do projeto","stageStatus":"STAND BY","stageStart":"","blocker":"FALTA DE INFORMAÇÃO","startDate":"2025-06-18","plannedEnd":"2025-08-25","hasAdjustment":false,"hasRefaction":false},{"id":79,"projectName":"VILA CLARA — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"VILA CLARA STORE","storeName":"VILA CLARA","channel":"SEM CLASSICIFAÇÃO","requestDate":"2025-07-14","executionDate":"2025-11-05","lastUpdateDate":"2025-11-05","description":"ATUALIZAÇÃO DE ESPAÇO MIZUNO","score":"SEM ATENDIMENTO","cluster":"","doors":1,"investment":4595.05,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-07-14","plannedEnd":"2025-11-05","hasAdjustment":false,"hasRefaction":false},{"id":80,"projectName":"1762 - VISUAL FASHION-AP-MACAPÁ-CENTRAL-387 — SIMPLES","projectType":"SIMPLES","priority":"Urgente","brand":"MIZUNO","network":"VISUAL FASHION","storeName":"1762 - VISUAL FASHION-AP-MACAPÁ-CENTRAL-387","channel":"FAMILY FOOTWEAR","requestDate":"2025-08-10","executionDate":"2025-10-07","lastUpdateDate":"2025-10-07","description":"PERSONALIZAÇÃO DE ESAÇO DE CALÇADOS E DE VESTUÁRIO","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":6186,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-08-10","plannedEnd":"2025-10-07","hasAdjustment":false,"hasRefaction":false},{"id":81,"projectName":"FONTE DAS MARCAS — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"FONTE DAS MARCAS","storeName":"FONTE DAS MARCAS","channel":"SEM CLASSIFICAÇÃO","requestDate":"2025-10-24","executionDate":"2026-05-14","lastUpdateDate":"2026-05-14","description":"AJUSTES NO PROJETO EXISTENTE","score":"SEM SCORE","cluster":"","doors":1,"investment":10355,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-10-24","plannedEnd":"2026-05-14","hasAdjustment":false,"hasRefaction":false},{"id":82,"projectName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Baixa","brand":"MIZUNO","network":"SPORT SHOW BELÉM","storeName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207","channel":"SPORTING GOODS","requestDate":"2025-10-22","executionDate":"2026-03-03","lastUpdateDate":"2026-03-03","description":"SIS","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":9782.85,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-10-22","plannedEnd":"2026-03-03","hasAdjustment":false,"hasRefaction":false},{"id":83,"projectName":"5389 - MUNDIAL-SP-SÃO PAULO-SANTANA-2100 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"MUNDIAL","storeName":"5389 - MUNDIAL-SP-SÃO PAULO-SANTANA-2100","channel":"FAMILY FOOTWEAR","requestDate":"2025-11-14","executionDate":"2026-05-11","lastUpdateDate":"2026-05-11","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 2","cluster":"","doors":7,"investment":13687.57,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2025-11-14","plannedEnd":"2026-05-11","hasAdjustment":false,"hasRefaction":false},{"id":84,"projectName":"8363 - SPORT CITY-SP-TABOÃO DA SERRA-SHOPPING TABOÃO-LOJA 226/227/228/229 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"MIZUNO","network":"SPORT CITY","storeName":"8363 - SPORT CITY-SP-TABOÃO DA SERRA-SHOPPING TABOÃO-LOJA 226/227/228/229","channel":"SPORT INSPIRED","requestDate":"2026-03-23","executionDate":"2026-08-20","lastUpdateDate":"2026-08-20","description":"SIS OLYMPIKUS E MIZUNO","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":3058.37,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-03-23","plannedEnd":"2026-08-20","hasAdjustment":true,"hasRefaction":false},{"id":85,"projectName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"RUNNING LAND","storeName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882","channel":"PERFORMANCE SPECIALTY","requestDate":"2026-01-28","executionDate":"2026-04-24","lastUpdateDate":"2026-04-24","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":3098.53,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-01-28","plannedEnd":"2026-04-24","hasAdjustment":false,"hasRefaction":false},{"id":86,"projectName":"HUMANITARIAN — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"MIZUNO","network":"HUMANITARIAN (PLACAS PERFORMANCE STATION)","storeName":"HUMANITARIAN","channel":"FAMILY FOOTWEAR","requestDate":"2026-02-05","executionDate":"2026-03-11","lastUpdateDate":"2026-03-11","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":11,"investment":2182.72,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-05","plannedEnd":"2026-03-11","hasAdjustment":false,"hasRefaction":false},{"id":87,"projectName":"K11-São Bernardo do Campo - COD. INVOLVES 3961. K59–Salvador/BA - COD. INVOLVES 10071. K16–Santo André - COD. INVOLVES 1268. K15–Praia Grande - COD. INVOLVES 369. K12–Santos - COD. INVOLVES 1576 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"KALLAN (CURADORIA)","storeName":"K11-São Bernardo do Campo - COD. INVOLVES 3961. K59–Salvador/BA - COD. INVOLVES 10071. K16–Santo André - COD. INVOLVES 1268. K15–Praia Grande - COD. INVOLVES 369. K12–Santos - COD. INVOLVES 1576","channel":"FAMILY FOOTWEAR","requestDate":"2026-02-10","executionDate":"2026-02-10","lastUpdateDate":"2026-03-17","description":"CURADORIA PERSONALIZADA","score":"SCORE TRADE 2","cluster":"","doors":5,"investment":2650,"status":"DECLINADO","stage":"Aprovação do orçamento","stageStatus":"DECLINADO","stageStart":"","blocker":"","startDate":"2026-02-10","plannedEnd":"2026-03-05","hasAdjustment":false,"hasRefaction":false},{"id":88,"projectName":"KEEP RUNNING — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"MIZUNO","network":"KEEP RUNNING","storeName":"KEEP RUNNING","channel":"SEM CLASSIFICAÇÃO","requestDate":"2026-02-10","executionDate":"2026-04-20","lastUpdateDate":"2026-04-20","description":"COMUNICAÇÃO VISUAL","score":"SEM SCORE","cluster":"","doors":1,"investment":773.72,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-10","plannedEnd":"2026-04-20","hasAdjustment":false,"hasRefaction":false},{"id":89,"projectName":"HUMANITARIAN — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"MIZUNO","network":"HUMANITARIAN (DISPLAY)","storeName":"HUMANITARIAN","channel":"FAMILY FOOTWEAR","requestDate":"2026-02-09","executionDate":"2026-02-09","lastUpdateDate":"2026-04-21","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":51,"investment":17102.92,"status":"EM ANDAMENTO","stage":"Instalação","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"FINALIZANDO POSITIVAÇÕES DE ACORDO COM CALENDÁRIO","startDate":"2026-02-09","plannedEnd":"2026-02-18","hasAdjustment":false,"hasRefaction":false},{"id":90,"projectName":"430 - CENTAURO-RN-NATAL-SHOPPING MIDWAY MALL-LOJA 135 627 - CENTAURO-AL- MACEIÓ-PARQUE SHOPPING MACEIÓ-LOJA 225 719 - CENTAURO-MA-SÃO LUÍS-SHOPPING DA ILHA-LOJA 206 1176 - CENTAURO-PB-JOÃO PESSOA-MANAÍRA SHOPPING CENTER-LOJA 186 1630 - CENTAURO-AM-MANAUS-MANAUARA SHOPPING-LOJA 185 1801 - CENTAURO-MG-UBERLÂNDIA-UBERLÂNDIA SHOPPING-LOJA 161 2057 - CENTAURO-PE-RECIFE-RIOMAR SHOPPING RECIFE-LOJA 198 2073 - CENTAURO-RO-PORTO VELHO-SHOPPING PORTO VELHO-LOJA 102/01, 02, 03 E 04 2270 - CENTAURO-BA-SALVADOR-SALVADOR SHOPPING-LOJA 67 2357 - CENTAURO-CE-FORTALEZA-SHOPPING IGUATEMI FORTALEZA-85 3036 - CENTAURO-DF-BRASÍLIA-TAGUATINGA SHOPPING-LOJA 2029 A 2031 3926 - CENTAURO-SP-CAMPINAS-JARDIM SANTA GENEBRA-PARQUE DOM PEDRO SHOPPING-LOJA 39 4108 - CENTAURO-PE-RECIFE-SHOPPING RECIFE-LOJA 53 4566 - CENTAURO-SC-FLORIANÓPOLIS-FLORIPA SHOPPING-LOJA 64 CENTAURO CAPIM DOURADO SHOPPING — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"CENTAURO (GÔNDOLAS)","storeName":"430 - CENTAURO-RN-NATAL-SHOPPING MIDWAY MALL-LOJA 135 627 - CENTAURO-AL- MACEIÓ-PARQUE SHOPPING MACEIÓ-LOJA 225 719 - CENTAURO-MA-SÃO LUÍS-SHOPPING DA ILHA-LOJA 206 1176 - CENTAURO-PB-JOÃO PESSOA-MANAÍRA SHOPPING CENTER-LOJA 186 1630 - CENTAURO-AM-MANAUS-MANAUARA SHOPPING-LOJA 185 1801 - CENTAURO-MG-UBERLÂNDIA-UBERLÂNDIA SHOPPING-LOJA 161 2057 - CENTAURO-PE-RECIFE-RIOMAR SHOPPING RECIFE-LOJA 198 2073 - CENTAURO-RO-PORTO VELHO-SHOPPING PORTO VELHO-LOJA 102/01, 02, 03 E 04 2270 - CENTAURO-BA-SALVADOR-SALVADOR SHOPPING-LOJA 67 2357 - CENTAURO-CE-FORTALEZA-SHOPPING IGUATEMI FORTALEZA-85 3036 - CENTAURO-DF-BRASÍLIA-TAGUATINGA SHOPPING-LOJA 2029 A 2031 3926 - CENTAURO-SP-CAMPINAS-JARDIM SANTA GENEBRA-PARQUE DOM PEDRO SHOPPING-LOJA 39 4108 - CENTAURO-PE-RECIFE-SHOPPING RECIFE-LOJA 53 4566 - CENTAURO-SC-FLORIANÓPOLIS-FLORIPA SHOPPING-LOJA 64 CENTAURO CAPIM DOURADO SHOPPING","channel":"SPORTING GOODS","requestDate":"2026-02-19","executionDate":"2026-08-04","lastUpdateDate":"2026-08-04","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":15,"investment":13778.66,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-19","plannedEnd":"2026-08-04","hasAdjustment":false,"hasRefaction":false},{"id":91,"projectName":"KATUXA - KTX AUTOATENDIMENTO — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"MIZUNO","network":"KTX","storeName":"KATUXA - KTX AUTOATENDIMENTO","channel":"SEM CLASSIFICAÇÃO","requestDate":"2026-03-05","executionDate":"2026-03-05","lastUpdateDate":"2026-03-16","description":"COMUNICAÇÃO VISUAL","score":"SEM SCORE","cluster":"","doors":8,"investment":0,"status":"STAND BY","stage":"Análise do briefing","stageStatus":"STAND BY","stageStart":"","blocker":"","startDate":"2026-03-05","plannedEnd":"2026-03-11","hasAdjustment":false,"hasRefaction":false},{"id":92,"projectName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"UNDER ARMOUR","network":"RUNNING LAND","storeName":"8554 - RUNNING LAND-SP-SÃO PAULO-PARAÍSO-1882","channel":"PERFORMANCE SPECIALTY","requestDate":"2026-01-28","executionDate":"2026-04-21","lastUpdateDate":"2026-04-21","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":2263.5,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-01-28","plannedEnd":"2026-04-21","hasAdjustment":false,"hasRefaction":false},{"id":93,"projectName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"MIZUNO","network":"RENSZ","storeName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15","channel":"SPORTING GOODS","requestDate":"2026-05-05","executionDate":"2026-05-05","lastUpdateDate":"2026-08-14","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":5000,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-05-05","plannedEnd":"2026-06-24","hasAdjustment":false,"hasRefaction":false},{"id":94,"projectName":"6114 - MIAMI STORE-SP-CAMPINAS-TAQUARAL-508 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"MIZUNO","network":"MIAMI STORE","storeName":"6114 - MIAMI STORE-SP-CAMPINAS-TAQUARAL-508","channel":"SPORTING GOODS","requestDate":"2026-06-14","executionDate":"2026-07-16","lastUpdateDate":"2026-07-16","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-14","plannedEnd":"2026-07-16","hasAdjustment":false,"hasRefaction":false},{"id":95,"projectName":"OSCAR TENIS — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"UNDER ARMOUR","network":"OSCAR TENIS","storeName":"OSCAR TENIS","channel":"SPORTING GOODS","requestDate":"2026-06-09","executionDate":"2026-06-17","lastUpdateDate":"2026-06-17","description":"REMOÇÃO DE SIS","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":1088,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-09","plannedEnd":"2026-06-17","hasAdjustment":false,"hasRefaction":false},{"id":96,"projectName":"6114 - MIAMI STORE-SP-CAMPINAS-TAQUARAL-508 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"UNDER ARMOUR","network":"MIAMI STORE","storeName":"6114 - MIAMI STORE-SP-CAMPINAS-TAQUARAL-508","channel":"SPORTING GOODS","requestDate":"2026-06-14","executionDate":"2026-07-16","lastUpdateDate":"2026-07-16","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":0,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-06-14","plannedEnd":"2026-07-16","hasAdjustment":false,"hasRefaction":false},{"id":97,"projectName":"10568 - OCA RUN-SÃO PAULO-INDIANOPOLIS-374 — SIMPLES","projectType":"SIMPLES","priority":"Alta","brand":"UNDER ARMOUR","network":"OCA RUN","storeName":"10568 - OCA RUN-SÃO PAULO-INDIANOPOLIS-374","channel":"PERFORMANCE SPECIALTY","requestDate":"2026-05-29","executionDate":"2026-06-15","lastUpdateDate":"2026-06-15","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 1","cluster":"","doors":1,"investment":1673.82,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-05-29","plannedEnd":"2026-06-15","hasAdjustment":false,"hasRefaction":false},{"id":98,"projectName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15 — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Alta","brand":"UNDER ARMOUR","network":"RENSZ","storeName":"1427 - RENSZ CALÇADOS-SP-CARAGUATATUBA-SERRAMAR PARQUE SHOPPING-LOJA 14 E 15","channel":"SPORTING GOODS","requestDate":"2026-02-04","executionDate":"2026-02-04","lastUpdateDate":"2026-08-14","description":"SIS","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":5000,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-02-04","plannedEnd":"2026-05-08","hasAdjustment":false,"hasRefaction":false},{"id":99,"projectName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"UNDER ARMOUR","network":"SPORT SHOW BELÉM","storeName":"9670 - SPORT SHOW-PA-BELÉM-CAMPINA-207","channel":"SPORTING GOODS","requestDate":"2026-02-23","executionDate":"2026-04-07","lastUpdateDate":"2026-04-07","description":"PERSONALIZAÇÃO","score":"SCORE TRADE 3","cluster":"","doors":1,"investment":1674.78,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-23","plannedEnd":"2026-04-07","hasAdjustment":false,"hasRefaction":false},{"id":100,"projectName":"7098 - VIRTUAL ESPORTES-PR-TOLEDO-CENTRO-1100 — SIMPLES","projectType":"SIMPLES","priority":"Baixa","brand":"UNDER ARMOUR","network":"VIRTUAL ESPORTES","storeName":"7098 - VIRTUAL ESPORTES-PR-TOLEDO-CENTRO-1100","channel":"SPORTING GOODS","requestDate":"2026-02-11","executionDate":"2026-03-26","lastUpdateDate":"2026-03-26","description":"COMUNICAÇÃO VISUAL","score":"SCORE TRADE 2","cluster":"","doors":1,"investment":4550.36,"status":"FINALIZADO","stage":"Finalizado","stageStatus":"FINALIZADO","stageStart":"","blocker":"","startDate":"2026-02-11","plannedEnd":"2026-03-26","hasAdjustment":false,"hasRefaction":false},{"id":101,"projectName":"Cerrado e Aparecida. — COMPLEXO (SIS)","projectType":"COMPLEXO (SIS)","priority":"Urgente","brand":"UNDER ARMOUR","network":"TENNIS PLACE - CERRADO","storeName":"Cerrado e Aparecida.","channel":"SPORTING GOODS","requestDate":"2026-07-01","executionDate":"2026-07-01","lastUpdateDate":"2026-08-07","description":"SIS 3 MARCAS","score":"SCORE TRADE 2","cluster":"CENTRO-OESTE","doors":1,"investment":0,"status":"EM ANDAMENTO","stage":"Produção","stageStatus":"EM ANDAMENTO","stageStart":"","blocker":"","startDate":"2026-07-01","plannedEnd":"2026-08-10","hasAdjustment":false,"hasRefaction":false}]};
+</script>
+<script>
+
+(() => {
+  const data = window.PROJECT_DATA || {projects:[], years:[]};
+  const brands = [...new Set(data.projects.map((p) => p.brand).filter(Boolean))];
+  const latestYear = (data.years && data.years.length ? data.years.at(-1) : 'Todos');
+  const state = {
+    year: 'Todos', month: 'Todos', brand: 'Todos', type: 'Todos',
+    priority: 'Todos', stage: 'Todos', status: 'Todos', search: '',
+    classification: 'score', view: 'management'
+  };
+
+  const $ = (s) => document.querySelector(s);
+  const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  const number = new Intl.NumberFormat('pt-BR');
+  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const brandColors = { OLYMPIKUS: '#1463ff', MIZUNO: '#173487', 'UNDER ARMOUR': '#434a54' };
+  const statusColors = {
+    'NÃO INICIADO':'#8c8c8c','EM ANDAMENTO':'#d49a00','CONCLUÍDO':'#548235','ATRASADO':'#cf4d4d',
+    'CONGELADO':'#4f89bd','STAND BY':'#5f8fb6','DECLINADO':'#b44242','FINALIZADO':'#548235','SEM STATUS':'#a0aec0'
+  };
+  const priorityColors = { Urgente:'#c53030', Alta:'#dd6b20', Média:'#d69e2e', Baixa:'#548235', 'Sem informação':'#718096' };
+  const attentionStatuses = ['EM ANDAMENTO','STAND BY','CONGELADO','ATRASADO'];
+  const timelineStatusClass = (status) => ({
+    'EM ANDAMENTO':'status-exec-progress',
+    'STAND BY':'status-exec-standby',
+    'CONGELADO':'status-exec-frozen',
+    'ATRASADO':'status-exec-delay',
+    'FINALIZADO':'status-exec-done',
+    'CONCLUÍDO':'status-exec-done'
+  }[status] || 'status-exec-neutral');
+
+  const text = (v) => v == null ? '' : String(v);
+  const esc = (v) => text(v).replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const sum = (rows, f) => rows.reduce((t,p) => t + (Number(p[f]) || 0), 0);
+  const unique = (rows, f) => new Set(rows.map((p)=>p[f]).filter(Boolean)).size;
+  const countBy = (rows, f, fallback='Sem informação') => rows.reduce((a,p) => { const k=p[f]||fallback; a[k]=(a[k]||0)+1; return a; }, {});
+  const entries = (counts,n=8) => Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  const color = (brand) => brandColors[brand] || '#7c8aa5';
+  const referenceDate = (p) => p.lastUpdateDate || (p.status === 'FINALIZADO' ? p.plannedEnd : '') || p.stageStart || p.startDate || p.requestDate || '';
+  const y = (p) => referenceDate(p) ? String(referenceDate(p)).slice(0,4) : '';
+  const m = (p) => referenceDate(p) ? String(Number(String(referenceDate(p)).slice(5,7))) : '';
+  const formatDate = (iso) => {
+    if (!iso) return 'Data não informada';
+    const parts = String(iso).slice(0,10).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return esc(iso);
+    return new Intl.DateTimeFormat('pt-BR').format(new Date(Date.UTC(parts[0],parts[1]-1,parts[2],12)));
+  };
+  const projectName = (p) => p.projectName || `${p.storeName || p.network || 'Loja não informada'} — ${p.projectType || 'Tipo não informado'}`;
+
+  // Unidade gerencial = projeto único, não linha da planilha.
+  // A chave preserva projetos distintos da mesma rede, mas consolida linhas multimarcas
+  // quando Rede + Descrição + Data da Solicitação + PDV são iguais.
+  const normalizeProjectKey = (v) => text(v).trim().replace(/\s+/g,' ').toUpperCase();
+  const projectKey = (p) => {
+    const parts = [p.network, p.description, p.requestDate, p.storeName].map(normalizeProjectKey);
+    return parts.some(Boolean) ? parts.join('|') : `ID:${p.id}`;
+  };
+  const priorityRank = { 'Urgente': 4, 'Alta': 3, 'Média': 2, 'Baixa': 1 };
+  const statusRank = { 'ATRASADO': 7, 'EM ANDAMENTO': 6, 'STAND BY': 5, 'CONGELADO': 4, 'NÃO INICIADO': 3, 'DECLINADO': 2, 'FINALIZADO': 1, 'CONCLUÍDO': 1 };
+
+  function uniqueProjects(rows) {
+    const groups = new Map();
+    rows.forEach((p) => {
+      const key = projectKey(p);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    });
+
+    return [...groups.values()].map((items) => {
+      const first = items[0];
+      const uniq = (field) => [...new Set(items.map(x => text(x[field]).trim()).filter(Boolean))];
+      const brands = uniq('brand');
+      const stages = uniq('stage');
+      const blockers = uniq('blocker');
+      const priorities = uniq('priority').sort((a,b)=>(priorityRank[b]||0)-(priorityRank[a]||0));
+      const statuses = uniq('status').sort((a,b)=>(statusRank[b]||0)-(statusRank[a]||0));
+      const stageDates = items.map(x=>x.stageStart).filter(Boolean).sort();
+      const startDates = items.map(x=>x.startDate).filter(Boolean).sort();
+      const plannedEnds = items.map(x=>x.plannedEnd).filter(Boolean).sort();
+
+      return {
+        ...first,
+        brand: brands.join(' + ') || first.brand,
+        priority: priorities[0] || first.priority,
+        status: statuses[0] || first.status,
+        stage: stages.length > 1 ? stages.join(' / ') : (stages[0] || first.stage),
+        blocker: blockers.join(' | '),
+        stageStart: stageDates[0] || first.stageStart,
+        startDate: startDates[0] || first.startDate,
+        plannedEnd: plannedEnds.at(-1) || first.plannedEnd,
+        _sourceIds: items.map(x=>x.id),
+        _sourceRows: items,
+        _projectKey: projectKey(first)
+      };
+    });
+  }
+
+  const daysSince = (iso) => {
+    if (!iso) return null;
+    const d = new Date(`${String(iso).slice(0,10)}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    const now = new Date();
+    return Math.max(0, Math.floor((now - d) / 86400000));
+  };
+  const searchable = (p) => [p.brand,p.network,p.storeName,p.channel,p.projectType,p.priority,p.description,p.score,p.cluster,p.status,p.stage,p.blocker].join(' ').toLowerCase();
+
+  const dateValue = (iso) => iso ? new Date(`${String(iso).slice(0,10)}T12:00:00`) : null;
+  const isClosedStatus = (status) => ['FINALIZADO','CONCLUÍDO','DECLINADO'].includes(status);
+
+  function deadlineState(p) {
+    if (isClosedStatus(p.status)) return {label:'Encerrado', className:'deadline-done'};
+    const end = dateValue(p.plannedEnd);
+    if (!end || Number.isNaN(end.getTime())) return {label:'Sem previsão calculada', className:'deadline-neutral'};
+    const today = new Date(); today.setHours(12,0,0,0);
+    if (end < today) return {label:`Previsão vencida · ${formatDate(p.plannedEnd)}`, className:'deadline-risk'};
+    return {label:`Previsão · ${formatDate(p.plannedEnd)}`, className:'deadline-ok'};
+  }
+
+  function attentionReason(p) {
+    const reasons = [];
+    if (p.blocker) reasons.push(p.blocker);
+    if (p.status === 'STAND BY') reasons.push('Projeto em Stand By');
+    if (p.status === 'CONGELADO') reasons.push('Projeto congelado');
+    if (p.status === 'ATRASADO') reasons.push('Status marcado como atrasado');
+
+    const end = dateValue(p.plannedEnd);
+    const today = new Date(); today.setHours(12,0,0,0);
+    if (!isClosedStatus(p.status) && end && !Number.isNaN(end.getTime()) && end < today) {
+      reasons.push(`Prazo previsto vencido em ${formatDate(p.plannedEnd)}`);
+    }
+
+    if (!reasons.length) {
+      reasons.push(`Acompanhamento da etapa: ${p.stage || 'etapa não informada'}`);
+    }
+    return [...new Set(reasons)].join(' · ');
+  }
+
+  function filtered({ignoreBrand=false, ignoreStage=false, ignoreStatus=false}={}) {
+    const q = state.search.trim().toLowerCase();
+    return data.projects.filter((p) =>
+      (state.year === 'Todos' || y(p) === state.year) &&
+      (state.month === 'Todos' || m(p) === state.month) &&
+      (ignoreBrand || state.brand === 'Todos' || p.brand === state.brand) &&
+      (state.type === 'Todos' || p.projectType === state.type) &&
+      (state.priority === 'Todos' || p.priority === state.priority) &&
+      (ignoreStage || state.stage === 'Todos' || p.stage === state.stage) &&
+      (ignoreStatus || state.status === 'Todos' || (p.status || 'SEM STATUS') === state.status) &&
+      (!q || searchable(p).includes(q))
+    );
+  }
+
+  function fillSelect(id, values, allLabel) {
+    $(id).innerHTML = [`<option value="Todos">${allLabel}</option>`, ...values.map((v)=>`<option value="${esc(v)}">${esc(v)}</option>`)].join('');
+  }
+
+  function setFilters() {
+    fillSelect('#yearFilter', (data.years||[]).slice().reverse(), 'Todos os anos');
+    $('#monthFilter').innerHTML = '<option value="Todos">Todos os meses</option>' + months.map((name,i)=>`<option value="${i+1}">${name}</option>`).join('');
+    fillSelect('#brandFilter', brands, 'Todas as marcas');
+    fillSelect('#typeFilter', [...new Set(data.projects.map(p=>p.projectType).filter(Boolean))].sort(), 'Todos os tipos');
+    fillSelect('#priorityFilter', [...new Set(data.projects.map(p=>p.priority).filter(Boolean))], 'Todas as prioridades');
+    fillSelect('#stageFilter', [...new Set(data.projects.map(p=>p.stage).filter(Boolean))].sort(), 'Todas as etapas');
+    fillSelect('#statusFilter', [...new Set(data.projects.map(p=>p.status||'SEM STATUS'))].sort(), 'Todos os status');
+
+    const bindings = [['#yearFilter','year'],['#monthFilter','month'],['#brandFilter','brand'],['#typeFilter','type'],['#priorityFilter','priority'],['#stageFilter','stage'],['#statusFilter','status']];
+    bindings.forEach(([id,key]) => {
+      $(id).value = state[key];
+      $(id).addEventListener('change', (e)=>{ state[key]=e.target.value; render(); });
+    });
+
+    let searchTimer;
+    $('#searchFilter').addEventListener('input', (e)=>{
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(()=>{ state.search=e.target.value; render(); }, 130);
+    });
+    $('#clearFilters').addEventListener('click', ()=>{
+      Object.assign(state,{year:'Todos',month:'Todos',brand:'Todos',type:'Todos',priority:'Todos',stage:'Todos',status:'Todos',search:''});
+      $('#searchFilter').value='';
+      bindings.forEach(([id,key])=>$(id).value=state[key]);
+      render();
+    });
+  }
+
+  function activeFilterEntries() {
+    const labels = {year:'Ano',month:'Mês',brand:'Marca',type:'Tipo',priority:'Prioridade',stage:'Etapa',status:'Status',search:'Busca'};
+    return Object.entries(state).filter(([k,v]) => labels[k] && v && v !== 'Todos').map(([k,v]) => {
+      const value = k === 'month' ? months[Number(v)-1] : v;
+      return [k,labels[k],value];
+    });
+  }
+
+  function renderFilterState() {
+    const active = activeFilterEntries();
+    $('#activeFilters').innerHTML = active.length
+      ? active.map(([key,label,value])=>`<span class="filter-chip">${esc(label)}: <strong>${esc(value)}</strong><button type="button" data-remove-filter="${key}" aria-label="Remover filtro ${esc(label)}">×</button></span>`).join('')
+      : '<span class="result-count">Nenhum filtro adicional aplicado.</span>';
+    $('#resultCount').textContent = `${number.format(uniqueProjects(filtered()).length)} projetos no recorte`;
+  }
+
+  function kpi(label,value,key) {
+    return `<button type="button" class="kpi" data-kpi="${key}"><span class="kpi-label">${label}</span><strong class="kpi-value">${value}</strong></button>`;
+  }
+
+  function renderOverview() {
+    const all = filtered({ignoreBrand:true});
+    const rows = filtered();
+    const context = [
+      state.year === 'Todos' ? 'Todos os anos' : state.year,
+      state.month === 'Todos' ? 'todos os meses' : months[Number(state.month)-1],
+      state.brand === 'Todos' ? 'todas as marcas' : state.brand
+    ].join(' · ');
+    $('#filterContext').textContent = context;
+    $('#overviewKpis').innerHTML = [
+      kpi('Projetos',number.format(uniqueProjects(rows).length),'projects'),
+      kpi('Portas',number.format(sum(rows,'doors')),'doors'),
+      kpi('Redes',number.format(unique(rows,'network')),'networks'),
+      kpi('Investimento',currency.format(sum(rows,'investment')),'investment')
+    ].join('');
+
+    const pieRows = brands.map((brand)=>({brand,investment:sum(all.filter(p=>p.brand===brand),'investment')}));
+    const total = pieRows.reduce((s,r)=>s+r.investment,0);
+    let start=0;
+    const segments=pieRows.map((r)=>{ const share=total?r.investment/total*100:0; const out=`${color(r.brand)} ${start}% ${start+share}%`; start+=share; return out; });
+    $('#investmentPie').style.background = segments.length ? `conic-gradient(${segments.join(',')})` : '#d9e2ec';
+    $('#pieTotal').textContent = currency.format(total);
+    $('#pieLegend').innerHTML = pieRows.map((r)=>{
+      const share=total?r.investment/total*100:0;
+      return `<div class="legend-item"><span class="swatch" style="background:${color(r.brand)}"></span><div><strong>${esc(r.brand)}</strong><small>${share.toFixed(1)}% · ${currency.format(r.investment)}</small></div></div>`;
+    }).join('');
+  }
+
+  function renderBrands() {
+    const all = filtered({ignoreBrand:true});
+    $('#brandCards').innerHTML = brands.map((brand)=>{
+      const rows=all.filter(p=>p.brand===brand);
+      return `<article class="brand-card ${state.brand===brand?'is-selected':''}" style="--brand-color:${color(brand)}">
+        <span class="brand-card-title"><span><i class="swatch" style="background:${color(brand)}"></i> ${esc(brand)}</span><span>${number.format(rows.length)} projetos</span></span>
+        <span class="brand-card-metrics">
+          <span>Projetos<strong>${number.format(rows.length)}</strong></span>
+          <span>Portas<strong>${number.format(sum(rows,'doors'))}</strong></span>
+          <span>Investimento<strong>${currency.format(sum(rows,'investment'))}</strong></span>
+        </span>
+        <div class="brand-card-actions">
+          <button class="brand-action primary" type="button" data-brand-filter="${esc(brand)}">Aplicar filtro</button>
+          <button class="brand-action" type="button" data-brand-drill="${esc(brand)}">Ver projetos</button>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  function renderBars(id, rows, tint, empty, drillField) {
+    const el=$(id);
+    if(!rows.length){ el.innerHTML=`<div class="empty-state">${empty||'Não há dados para este recorte.'}</div>`; return; }
+    const max=Math.max(...rows.map(([,v])=>v),1);
+    el.innerHTML=rows.map(([label,value])=>`<div class="bar-row ${drillField?'clickable-bar':''}" ${drillField?`role="button" tabindex="0" data-drill-field="${drillField}" data-drill-value="${esc(label)}"`:''}>
+      <span class="bar-label" title="${esc(label)}">${esc(label)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(3,value/max*100)}%;background:${tint(label)}">${value>1?value:''}</div></div>
+      <span class="bar-value">${value}</span>
+    </div>`).join('');
+  }
+
+
+  const executivePalette = ['#1463ff','#0c8cab','#6d54c8','#cf7b3a','#5c8a72','#9b5d72','#52738c','#9a7b3c'];
+
+  function pct(value,total) {
+    return total ? Math.round((value/total)*100) : 0;
+  }
+
+  function renderPriorityVisual(rows) {
+    const counts = countBy(rows,'priority');
+    const order = ['Urgente','Alta','Média','Baixa','Sem informação'];
+    const items = order.map(label=>[label,counts[label]||0]).filter(([,v])=>v>0);
+    const total = items.reduce((s,[,v])=>s+v,0);
+    const el = $('#priorityChart');
+    if(!items.length){ el.innerHTML='<div class="empty-state">Não há dados para este recorte.</div>'; return; }
+
+    el.innerHTML = `
+      <div class="priority-stack" aria-label="Distribuição por prioridade">
+        ${items.map(([label,value])=>`
+          <button type="button" class="priority-stack-segment"
+            data-drill-field="priority" data-drill-value="${esc(label)}"
+            style="width:${Math.max(6,pct(value,total))}%;--priority-color:${priorityColors[label]||'#718096'}"
+            title="${esc(label)} · ${value} projetos · ${pct(value,total)}%">
+            <span>${pct(value,total)}%</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="priority-legend-grid">
+        ${items.map(([label,value])=>`
+          <button type="button" class="priority-legend-item" data-drill-field="priority" data-drill-value="${esc(label)}">
+            <span class="priority-dot" style="background:${priorityColors[label]||'#718096'}"></span>
+            <span class="priority-copy"><strong>${esc(label)}</strong><small>${pct(value,total)}% da carteira</small></span>
+            <b>${number.format(value)}</b>
+          </button>
+        `).join('')}
+      </div>`;
+  }
+
+  function renderMonthlyVisual(rows) {
+    const values = months.map((name,i)=>({
+      month:name.slice(0,3),
+      monthFull:name,
+      value:uniqueProjects(rows.filter(p=>m(p)===String(i+1))).length,
+      monthValue:String(i+1)
+    }));
+    const withData = values.filter(x=>x.value>0);
+    const max = Math.max(1,...values.map(x=>x.value));
+    const peak = withData.slice().sort((a,b)=>b.value-a.value)[0];
+    $('#monthlyInsight').innerHTML = peak
+      ? `<span>Pico</span><strong>${esc(peak.monthFull)} · ${peak.value}</strong>`
+      : '';
+
+    $('#monthlyChart').innerHTML = `
+      <div class="monthly-columns">
+        ${values.map(item=>`
+          <button type="button"
+            class="month-column ${state.month===item.monthValue?'is-selected':''}"
+            data-month-filter="${item.monthValue}"
+            title="${esc(item.monthFull)} · ${item.value} projetos">
+            <span class="month-value">${item.value || ''}</span>
+            <span class="month-bar-track">
+              <span class="month-bar-fill" style="height:${item.value ? Math.max(8,(item.value/max)*100) : 2}%"></span>
+            </span>
+            <span class="month-label">${esc(item.month)}</span>
+          </button>
+        `).join('')}
+      </div>`;
+  }
+
+
+  function renderProjectTypeVisual(rows) {
+    const counts = countBy(rows,'projectType','Sem informação');
+    const preferredOrder = ['SIMPLES','COMPLEXO (SIS)','Sem informação'];
+    const items = preferredOrder
+      .map(label=>[label,counts[label]||0])
+      .filter(([,value])=>value>0);
+
+    Object.entries(counts).forEach(([label,value])=>{
+      if(!preferredOrder.includes(label) && value>0) items.push([label,value]);
+    });
+
+    const total = items.reduce((s,[,v])=>s+v,0);
+    const el = $('#projectTypeChart');
+    if(!items.length){
+      el.innerHTML='<div class="empty-state">Não há dados para este recorte.</div>';
+      return;
+    }
+
+    const typeColors = {
+      'SIMPLES':'#0c8cab',
+      'COMPLEXO (SIS)':'#6d54c8',
+      'Sem informação':'#829ab1'
+    };
+
+    let start=0;
+    const gradient = items.map(([label,value],index)=>{
+      const share = total ? (value/total)*100 : 0;
+      const c = typeColors[label] || executivePalette[index%executivePalette.length];
+      const segment = `${c} ${start}% ${start+share}%`;
+      start += share;
+      return segment;
+    }).join(',');
+
+    el.innerHTML = `
+      <div class="type-hero">
+        <button type="button"
+          class="type-donut"
+          data-drill-field="projectType"
+          data-drill-value="Todos"
+          style="background:conic-gradient(${gradient})"
+          title="Abrir todos os tipos operacionais">
+          <span class="type-donut-center">
+            <small>Projetos</small>
+            <strong>${total}</strong>
+          </span>
+        </button>
+
+        <div class="type-summary">
+          ${items.map(([label,value],index)=>{
+            const share=pct(value,total);
+            const c=typeColors[label] || executivePalette[index%executivePalette.length];
+            return `
+              <button type="button"
+                class="type-summary-card"
+                data-drill-field="projectType"
+                data-drill-value="${esc(label)}"
+                style="--type-color:${c}">
+                <span class="type-summary-head">
+                  <i></i>
+                  <strong>${esc(label)}</strong>
+                </span>
+                <span class="type-summary-metrics">
+                  <b>${value}</b>
+                  <small>${share}% da carteira</small>
+                </span>
+                <span class="type-share-track">
+                  <span style="width:${share}%"></span>
+                </span>
+              </button>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDescriptionVisual(rows) {
+    const items = entries(countBy(rows,'description'),8);
+    const total = rows.length;
+    const max = Math.max(1,...items.map(([,v])=>v));
+    const el = $('#descriptionChart');
+    if(!items.length){ el.innerHTML='<div class="empty-state">Não há dados para este recorte.</div>'; return; }
+
+    el.innerHTML = items.map(([label,value],index)=>`
+      <button type="button" class="rank-item" data-drill-field="description" data-drill-value="${esc(label)}">
+        <span class="rank-number">${String(index+1).padStart(2,'0')}</span>
+        <span class="rank-main">
+          <strong title="${esc(label)}">${esc(label)}</strong>
+          <span class="rank-track"><span class="rank-fill" style="width:${Math.max(6,(value/max)*100)}%;--rank-color:${executivePalette[index%executivePalette.length]}"></span></span>
+        </span>
+        <span class="rank-metric"><b>${value}</b><small>${pct(value,total)}%</small></span>
+      </button>
+    `).join('');
+  }
+
+  function renderClassificationVisual(rows, field) {
+    const items = entries(countBy(rows.filter(p=>p[field]),field),8);
+    const total = items.reduce((s,[,v])=>s+v,0);
+    const el = $('#classificationChart');
+    if(!items.length){
+      el.innerHTML=`<div class="empty-state">${field==='cluster'?'Ainda não há classificações de cluster preenchidas neste recorte.':'Não há dados para este recorte.'}</div>`;
+      return;
+    }
+
+    el.innerHTML = `<div class="classification-grid">${
+      items.map(([label,value],index)=>{
+        const share=pct(value,total);
+        const c=executivePalette[(index+2)%executivePalette.length];
+        return `<button type="button" class="classification-card" data-drill-field="${field}" data-drill-value="${esc(label)}">
+          <span class="classification-ring" style="--ring-value:${share};--ring-color:${c}">
+            <strong>${share}%</strong>
+          </span>
+          <span class="classification-copy">
+            <strong title="${esc(label)}">${esc(label)}</strong>
+            <small>${value} projeto${value===1?'':'s'}</small>
+          </span>
+        </button>`;
+      }).join('')
+    }</div>`;
+  }
+
+  function renderStatusComposition(rows) {
+    const counts = countBy(rows,'status','SEM STATUS');
+    const order = ['EM ANDAMENTO','STAND BY','ATRASADO','CONGELADO','FINALIZADO','CONCLUÍDO','DECLINADO','NÃO INICIADO','SEM STATUS'];
+    const items = order.map(label=>[label,counts[label]||0]).filter(([,v])=>v>0);
+    Object.entries(counts).forEach(([label,value])=>{
+      if(!order.includes(label) && value>0) items.push([label,value]);
+    });
+    const total = items.reduce((s,[,v])=>s+v,0);
+    const el = $('#statusChart');
+    if(!items.length){ el.innerHTML='<div class="empty-state">Não há dados para este recorte.</div>'; return; }
+
+    let start=0;
+    const segments=items.map(([label,value],index)=>{
+      const share=total?(value/total)*100:0;
+      const c=statusColors[label]||executivePalette[index%executivePalette.length];
+      const part=`${c} ${start}% ${start+share}%`;
+      start+=share;
+      return part;
+    });
+
+    el.innerHTML = `
+      <div class="status-donut-wrap">
+        <button type="button" class="status-donut" data-drill-field="status" data-drill-value="Todos"
+          style="background:conic-gradient(${segments.join(',')})" title="Portfólio completo">
+          <span class="status-donut-center"><small>Projetos</small><strong>${total}</strong></span>
+        </button>
+        <div class="status-legend">
+          ${items.map(([label,value],index)=>{
+            const c=statusColors[label]||executivePalette[index%executivePalette.length];
+            return `<button type="button" class="status-legend-item" data-drill-field="status" data-drill-value="${esc(label)}">
+              <span class="status-swatch" style="background:${c}"></span>
+              <span class="status-label"><strong>${esc(label)}</strong><small>${pct(value,total)}% da carteira</small></span>
+              <b>${value}</b>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderManagement() {
+    const rows=filtered();
+    const uniqueRows = uniqueProjects(rows);
+    renderPriorityVisual(uniqueRows);
+    const attention=uniqueProjects(rows.filter(p=>attentionStatuses.includes(p.status)));
+    $('#attentionCount').textContent=number.format(attention.length);
+    $('#attentionList').innerHTML=attention
+      .sort((a,b)=>String(a.requestDate||'9999-12-31').localeCompare(String(b.requestDate||'9999-12-31')))
+      .slice(0,6)
+      .map((p)=>`<div class="attention-item">
+        <button type="button" class="project-trigger attention-project-trigger" data-project-id="${(p._sourceIds||[p.id]).join(',')}">
+          <strong title="${esc(projectName(p))}">${esc(projectName(p))}</strong>
+          <span class="attention-meta">${esc(p.brand)} · ${esc(p.stage || 'Sem etapa definida')}</span>
+          <span class="attention-reason"><b>Motivo de atenção:</b> ${esc(attentionReason(p))}</span>
+          <span class="attention-deadline">${esc(deadlineState(p).label)}</span>
+        </button>
+        <span class="status-badge attention-status ${deadlineState(p).className}">${esc(p.status)}</span>
+      </div>`).join('') || '<div class="empty-state">Não há projetos em atenção neste recorte.</div>';
+    renderMonthlyVisual(rows);
+  }
+
+  function renderChannel(rows) {
+    const channels=[...new Set(rows.map(p=>p.channel||'Sem canal'))];
+    const items=channels.map((channel)=>({
+      channel,
+      values:brands.map((brand)=>({brand,value:rows.filter(p=>(p.channel||'Sem canal')===channel&&p.brand===brand).length}))
+    })).sort((a,b)=>b.values.reduce((s,x)=>s+x.value,0)-a.values.reduce((s,x)=>s+x.value,0));
+    const max=Math.max(1,...items.map(r=>r.values.reduce((s,x)=>s+x.value,0)));
+    $('#brandLegend').innerHTML=brands.map(b=>`<span><i class="swatch" style="background:${color(b)}"></i>${esc(b)}</span>`).join('');
+    $('#channelChart').innerHTML=items.map((r)=>{
+      const total=r.values.reduce((s,x)=>s+x.value,0);
+      return `<div class="stack-row clickable-bar" role="button" tabindex="0" data-drill-field="channel" data-drill-value="${esc(r.channel)}">
+        <span class="stack-label" title="${esc(r.channel)}">${esc(r.channel)}</span>
+        <div class="stack-track">${r.values.filter(x=>x.value).map(x=>`<span class="stack-segment" style="width:${x.value/max*100}%;background:${color(x.brand)}">${x.value>1?x.value:''}</span>`).join('')}</div>
+        <span class="stack-total">${total}</span>
+      </div>`;
+    }).join('') || '<div class="empty-state">Não há dados para este recorte.</div>';
+  }
+
+  function renderCharts() {
+    const rows=filtered();
+    const uniqueRows=uniqueProjects(rows);
+    renderChannel(rows);
+    renderProjectTypeVisual(uniqueRows);
+    renderDescriptionVisual(uniqueRows);
+    const f=state.classification;
+    $('#classificationTitle').textContent=f==='score'?'Projetos por Score Trade':'Projetos por Cluster';
+    renderClassificationVisual(uniqueRows,f);
+    renderStatusComposition(uniqueRows);
+  }
+
+  function renderTimeline() {
+    const rows=uniqueProjects(filtered())
+      .sort((a,b)=>String(a.requestDate||'9999-12-31').localeCompare(String(b.requestDate||'9999-12-31')));
+
+    const statusBaseRows = uniqueProjects(
+      filtered({ignoreStatus:true})
+    );
+
+    const statusOrder = ['EM ANDAMENTO','STAND BY','ATRASADO','CONGELADO','FINALIZADO','CONCLUÍDO','DECLINADO','NÃO INICIADO'];
+    const statusCounts = statusOrder
+      .map(status => [status, statusBaseRows.filter(p => (p.status || 'SEM STATUS') === status).length])
+      .filter(([,count]) => count > 0);
+
+    $('#timelineKpis').innerHTML=[
+      `<button type="button" class="timeline-kpi situation-kpi ${state.status==='Todos'?'is-selected':''}" data-status-filter="Todos">
+        <span>Portfólio total</span><strong>${statusBaseRows.length}</strong>
+      </button>`,
+      ...statusCounts.map(([status,count])=>`
+        <button type="button" class="timeline-kpi situation-kpi ${state.status===status?'is-selected':''}" data-status-filter="${esc(status)}">
+          <span title="${esc(status)}">${esc(status)}</span><strong>${count}</strong>
+        </button>
+      `)
+    ].join('');
+
+    $('#timelineRows').innerHTML=rows.map((p)=>{
+      const statusClass=timelineStatusClass(p.status);
+      const daysStage=daysSince(p.stageStart);
+      const stageAge=daysStage == null ? 'Tempo não informado' : `${number.format(daysStage)} dias na etapa`;
+      const attentionText = isClosedStatus(p.status)
+        ? (p.status === 'DECLINADO' ? (p.blocker || 'Projeto declinado') : 'Projeto encerrado')
+        : (p.blocker || (p.status==='ATRASADO' ? 'Projeto sinalizado como atrasado' : 'Sem ponto crítico informado'));
+      const requestLabel=formatDate(p.requestDate);
+      const stageLabel=formatDate(p.stageStart);
+
+      return `<div class="timeline-row ${statusClass}">
+        <div class="timeline-project">
+          <button type="button" class="project-trigger" data-project-id="${(p._sourceIds||[p.id]).join(',')}">
+            <strong title="${esc(projectName(p))}">${esc(projectName(p))}</strong>
+            <span>Solicitado em ${requestLabel}</span>
+          </button>
+        </div>
+
+        <div class="timeline-brand-cell">
+          <span class="timeline-brand">${esc(p.brand||'Marca não informada')}</span>
+        </div>
+
+        <div class="timeline-priority-cell">
+          <span class="priority-pill">${esc(p.priority||'Sem prioridade')}</span>
+        </div>
+
+        <div class="timeline-stage">
+          <strong>${esc(p.stage||'Sem etapa definida')}</strong>
+          <span>${esc(stageAge)}</span>
+        </div>
+
+        <div>
+          <span class="exec-status-badge">${esc(p.status||'SEM STATUS')}</span>
+        </div>
+
+        <div class="timeline-blocker ${p.blocker || p.status==='ATRASADO' ? 'has-blocker' : ''}">
+          ${esc(attentionText)}
+        </div>
+
+        <div class="timeline-journey">
+          <div class="journey-node">
+            <span class="journey-dot"></span>
+            <span class="journey-copy"><small>Solicitação</small><strong>${requestLabel}</strong></span>
+          </div>
+          <span class="journey-line"></span>
+          <div class="journey-node is-current">
+            <span class="journey-dot"></span>
+            <span class="journey-copy"><small>Etapa atual</small><strong>${stageLabel}</strong></span>
+          </div>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty-state">Não há projetos ativos com os filtros atuais.</div>';
+  }
+
+  function drillStats(rows) {
+    return [
+      ['Projetos',number.format(uniqueProjects(rows).length)],
+      ['Portas',number.format(sum(rows,'doors'))],
+      ['Redes',number.format(unique(rows,'network'))],
+      ['Investimento',currency.format(sum(rows,'investment'))]
+    ].map(([l,v])=>`<div class="drill-stat"><span>${l}</span><strong>${v}</strong></div>`).join('');
+  }
+
+  function projectRowsMarkup(rows) {
+    const projectRows=uniqueProjects(rows);
+    if(!projectRows.length) return '<div class="empty-state">Nenhum projeto encontrado neste drill down.</div>';
+    return projectRows.map((p)=>`<button type="button" class="drill-row" data-project-id="${(p._sourceIds||[p.id]).join(',')}">
+      <span class="drill-main"><strong>${esc(projectName(p))}</strong><span>${esc(p.channel||'Sem canal')}</span>${attentionStatuses.includes(p.status)?`<small class="drill-attention-reason">Motivo: ${esc(attentionReason(p))}</small>`:''}</span>
+      <span class="drill-cell">Marca<strong>${esc(p.brand||'—')}</strong></span>
+      <span class="drill-cell">Prioridade<strong>${esc(p.priority||'—')}</strong></span>
+      <span class="drill-cell">Portas<strong>${number.format(p.doors||0)}</strong></span>
+      <span class="drill-cell">Investimento<strong>${currency.format(p.investment||0)}</strong></span>
+      <span class="status-badge" style="background:${statusColors[p.status]||'#718096'}">${esc(p.status||'SEM STATUS')}</span>
+    </button>`).join('');
+  }
+
+  function showDrilldown({title,subtitle='',rows=null,networkMode=false}) {
+    const list=rows || filtered();
+    $('#drilldownTitle').textContent=title;
+    $('#drilldownSubtitle').textContent=subtitle;
+    $('#drilldownSummary').innerHTML=drillStats(list);
+
+    if(networkMode){
+      const groups=Object.values(list.reduce((acc,p)=>{
+        const key=p.network||'Sem rede informada';
+        if(!acc[key]) acc[key]={name:key,rows:[]};
+        acc[key].rows.push(p); return acc;
+      },{})).sort((a,b)=>b.rows.length-a.rows.length);
+      $('#drilldownList').innerHTML=groups.map(g=>`<button type="button" class="drill-network" data-network-drill="${esc(g.name)}">
+        <span class="drill-main"><strong>${esc(g.name)}</strong><span>Clique para abrir os projetos desta rede</span></span>
+        <span class="drill-cell">Projetos<strong>${number.format(g.rows.length)}</strong></span>
+        <span class="drill-cell">Portas<strong>${number.format(sum(g.rows,'doors'))}</strong></span>
+        <span class="drill-cell">Investimento<strong>${currency.format(sum(g.rows,'investment'))}</strong></span>
+        <span>→</span>
+      </button>`).join('');
+    } else {
+      $('#drilldownList').innerHTML=projectRowsMarkup(list);
+    }
+    $('#drilldownDialog').showModal();
+  }
+
+  let returnToDrilldown = false;
+
+
+  function firstValidUrl(values) {
+    const candidates = values.flatMap(v => Array.isArray(v) ? v : [v]).filter(Boolean);
+    for (const value of candidates) {
+      const url = String(value).trim();
+      if (/^https?:\/\//i.test(url)) return url;
+    }
+    return '';
+  }
+
+  function projectMaterialLinks(sources) {
+    return {
+      transcript: firstValidUrl(sources.map(p =>
+        p.transcriptUrl || p.transcriptLink || p.meetingTranscriptUrl ||
+        p.meetingTranscript || p.transcriptionUrl || p.transcriptionLink
+      )),
+      images: firstValidUrl(sources.map(p =>
+        p.imagesUrl || p.imagesLink || p.imageUrl || p.imageLink ||
+        p.evidenceUrl || p.evidenceLink || p.photosUrl || p.photosLink
+      )),
+      folder: firstValidUrl(sources.map(p =>
+        p.projectFolderUrl || p.projectFolderLink || p.documentsUrl ||
+        p.documentsLink || p.folderUrl || p.folderLink || p.projectUrl
+      ))
+    };
+  }
+
+  function materialButton(label, url, icon, unavailableText) {
+    if (url) {
+      return `<a class="material-link-button" href="${esc(url)}" target="_blank" rel="noopener noreferrer">
+        <span class="material-icon" aria-hidden="true">${icon}</span>
+        <span class="material-button-copy"><strong>${esc(label)}</strong><small>Abrir em nova aba</small></span>
+        <span class="material-arrow" aria-hidden="true">↗</span>
+      </a>`;
+    }
+    return `<button type="button" class="material-link-button is-disabled" disabled>
+      <span class="material-icon" aria-hidden="true">${icon}</span>
+      <span class="material-button-copy"><strong>${esc(label)}</strong><small>${esc(unavailableText)}</small></span>
+      <span class="material-arrow" aria-hidden="true">—</span>
+    </button>`;
+  }
+
+  function showProjectDetail(id) {
+    const sourceIds=String(id).split(',').map(x=>x.trim()).filter(Boolean);
+    const sources=data.projects.filter(project=>sourceIds.includes(String(project.id)));
+    if(!sources.length) return;
+
+    const p=uniqueProjects(sources)[0];
+    $('#dialogProjectName').textContent=projectName(p);
+    const statusColor=statusColors[p.status]||'#718096';
+    const materialLinks = projectMaterialLinks(sources);
+
+    $('#projectMaterials').innerHTML = `
+      ${materialButton(
+        'Transcrição da reunião',
+        materialLinks.transcript,
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.75h14a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 19 16.25h-7.2L7 20v-3.75H5A1.25 1.25 0 0 1 3.75 15V6A1.25 1.25 0 0 1 5 4.75Zm2.25 4h9.5m-9.5 3h6.5"/></svg>',
+        'Link não informado na base'
+      )}
+      ${materialButton(
+        'Imagens / Evidências',
+        materialLinks.images,
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="1.5"/><circle cx="9" cy="10" r="1.5"/><path d="m5.75 17 4.5-4 3.25 2.75 2.5-2.25 2.25 2"/></svg>',
+        'Link não informado na base'
+      )}
+      ${materialButton(
+        'Pasta / Documentos',
+        materialLinks.folder,
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 7.25h6l1.5 2h9v8.5a1.5 1.5 0 0 1-1.5 1.5h-13.5a1.5 1.5 0 0 1-1.5-1.5V7.25Z"/><path d="M3.75 7.25v-1a1.5 1.5 0 0 1 1.5-1.5h4l1.5 2.5"/></svg>',
+        'Link não informado na base'
+      )}
+    `;
+
+    $('#projectDetailGrid').innerHTML=`
+      <div class="detail-hero">
+        <div><strong>${esc(p.description||p.projectType||'Projeto')}</strong><p>${esc(p.storeName||p.network||'Loja não informada')}</p></div>
+        <div class="detail-hero-metric"><span>Investimento</span><strong>${currency.format(sum(sources,'investment'))}</strong></div>
+      </div>
+      ${[
+        ['Marca',p.brand],['Rede',p.network],['Canal',p.channel],['Tipo',p.projectType],
+        ['Prioridade',p.priority],['Score Trade',p.score],['Cluster',p.cluster||'Não informado'],['Portas',number.format(Math.max(...sources.map(x=>Number(x.doors)||0)))],
+        ['Etapa atual',p.stage],['Status',p.status],['Data solicitação',formatDate(p.requestDate)],['Início etapa',formatDate(p.stageStart)],
+        ['Início do SLA',formatDate(p.startDate)],['Previsão de finalização',formatDate(p.plannedEnd)],
+        ['Dias em carteira',daysSince(p.requestDate) == null ? 'Não calculável' : `${daysSince(p.requestDate)} dias`],
+        ['Dias na etapa',daysSince(p.stageStart) == null ? 'Não calculável' : `${daysSince(p.stageStart)} dias`],
+        ['Motivo de atenção',attentionReason(p)]
+      ].map(([l,v])=>`<div class="detail-compact"><span>${esc(l)}</span><strong>${esc(v||'Não informado')}</strong></div>`).join('')}
+    `;
+
+    const scheduleStatus = deadlineState(p);
+    $('#projectScheduleSummary').innerHTML = `
+      <div class="schedule-summary-item"><span>Início do SLA</span><strong>${esc(formatDate(p.startDate))}</strong><small>Data que inicia o cálculo do cronograma</small></div>
+      <div class="schedule-summary-item current"><span>Etapa atual</span><strong>${esc(p.stage || 'Sem etapa definida')}</strong><small>${esc(formatDate(p.stageStart))}</small></div>
+      <div class="schedule-summary-item ${scheduleStatus.className}"><span>Previsão de finalização</span><strong>${esc(formatDate(p.plannedEnd))}</strong><small>${esc(scheduleStatus.label)}</small></div>
+    `;
+
+    const events = [
+      {
+        title:'Início do SLA do projeto',
+        date:formatDate(p.startDate),
+        desc:'Marco utilizado pela base para iniciar o cálculo dos prazos em dias úteis.',
+        color:'#49677f'
+      },
+      {
+        title:p.stage || 'Etapa atual não definida',
+        date:formatDate(p.stageStart),
+        desc:`Situação atual: ${p.status || 'SEM STATUS'}. Motivo de atenção: ${attentionReason(p)}`,
+        color:statusColor,
+        blocker:Boolean(p.blocker) || ['STAND BY','ATRASADO','CONGELADO'].includes(p.status)
+      },
+      {
+        title:'Previsão calculada de finalização',
+        date:formatDate(p.plannedEnd),
+        desc:'Data prevista pela matriz de SLA da base, considerando tipo de projeto, prioridade e cronograma calculado.',
+        color:scheduleStatus.className === 'deadline-risk' ? '#9a5555' : '#647d6c',
+        blocker:scheduleStatus.className === 'deadline-risk'
+      }
+    ];
+
+    $('#projectTimeline').innerHTML=events.map(e=>`<div class="project-event" style="--event-color:${e.color}">
+      <span class="event-dot"></span>
+      <div class="event-card"><div class="event-top"><strong>${esc(e.title)}</strong><span class="event-date">${esc(e.date)}</span></div><p class="${e.blocker?'blocker-note':''}">${esc(e.desc)}</p></div>
+    </div>`).join('');
+
+    returnToDrilldown = $('#drilldownDialog').open;
+    if(returnToDrilldown) $('#drilldownDialog').close();
+    $('#projectDialog').showModal();
+  }
+
+  function handleBarDrill(target) {
+    const field=target.dataset.drillField, value=target.dataset.drillValue;
+    let rows=filtered();
+    if(field==='status') rows=value==='Todos' ? uniqueProjects(rows) : uniqueProjects(rows).filter(p=>(p.status||'SEM STATUS')===value);
+    else if(field==='channel') rows=rows.filter(p=>(p.channel||'Sem canal')===value);
+    else rows=value==='Todos' ? uniqueProjects(rows) : rows.filter(p=>(p[field]||'Sem informação')===value);
+    const labels={priority:'Prioridade',projectType:'Tipo',description:'Descrição',score:'Score Trade',cluster:'Cluster',status:'Status',channel:'Canal'};
+    showDrilldown({title:`${labels[field]||field}: ${value}`,subtitle:'Projetos que compõem esta categoria no recorte atual.',rows});
+  }
+
+  function render() {
+    renderFilterState(); renderOverview(); renderBrands(); renderManagement(); renderCharts(); renderTimeline();
+  }
+
+  $('#dataSummary').textContent=`${number.format(data.projectCount||data.projects.length)} registros carregados · ${number.format(uniqueProjects(data.projects).length)} projetos únicos · atualização: ${new Intl.DateTimeFormat('pt-BR').format(new Date(data.generatedAt))}`;
+  setFilters();
+
+  document.addEventListener('click',(e)=>{
+    const remove=e.target.closest('[data-remove-filter]');
+    if(remove){
+      const key=remove.dataset.removeFilter;
+      state[key]= key==='search' ? '' : 'Todos';
+      if(key==='search') $('#searchFilter').value='';
+      else { const el=document.querySelector(`#${key}Filter`); if(el) el.value='Todos'; }
+      render(); return;
+    }
+    const project=e.target.closest('[data-project-id]');
+    if(project){ showProjectDetail(project.dataset.projectId); return; }
+
+    const kpiEl=e.target.closest('[data-kpi]');
+    if(kpiEl){
+      const key=kpiEl.dataset.kpi;
+      if(key==='networks') showDrilldown({title:'Redes no portfólio',subtitle:'Drill down por rede dentro do recorte atual.',rows:filtered(),networkMode:true});
+      else {
+        const titles={projects:'Projetos no recorte',doors:'Projetos por volume de portas',investment:'Projetos por investimento'};
+        let rows=filtered().slice();
+        if(key==='doors') rows.sort((a,b)=>(b.doors||0)-(a.doors||0));
+        if(key==='investment') rows.sort((a,b)=>(b.investment||0)-(a.investment||0));
+        showDrilldown({title:titles[key]||'Drill down',subtitle:'Clique em um projeto para abrir o detalhamento individual.',rows});
+      }
+      return;
+    }
+
+    const brandFilter=e.target.closest('[data-brand-filter]');
+    if(brandFilter){
+      state.brand=brandFilter.dataset.brandFilter; $('#brandFilter').value=state.brand; render(); return;
+    }
+    const brandDrill=e.target.closest('[data-brand-drill]');
+    if(brandDrill){
+      const brand=brandDrill.dataset.brandDrill;
+      showDrilldown({title:`Portfólio ${brand}`,subtitle:'Projetos da marca respeitando os demais filtros ativos.',rows:filtered({ignoreBrand:true}).filter(p=>p.brand===brand)}); return;
+    }
+    const bar=e.target.closest('[data-drill-field]');
+    if(bar){ handleBarDrill(bar); return; }
+
+    const network=e.target.closest('[data-network-drill]');
+    if(network){
+      const name=network.dataset.networkDrill;
+      const rows=filtered().filter(p=>(p.network||'Sem rede informada')===name);
+      showDrilldown({title:`Rede: ${name}`,subtitle:'Projetos vinculados a esta rede.',rows}); return;
+    }
+  });
+
+  document.addEventListener('keydown',(e)=>{
+    if((e.key==='Enter'||e.key===' ') && e.target.matches('[data-drill-field]')){ e.preventDefault(); handleBarDrill(e.target); }
+  });
+
+  document.addEventListener('click',(e)=>{
+    const statusCard=e.target.closest('[data-status-filter]');
+    if(!statusCard) return;
+    const status=statusCard.dataset.statusFilter;
+    state.status=status;
+    $('#statusFilter').value=status;
+    render();
+  });
+
+  document.addEventListener('click',(e)=>{
+    const monthCard=e.target.closest('[data-month-filter]');
+    if(!monthCard) return;
+    const monthValue=monthCard.dataset.monthFilter;
+    state.month = state.month === monthValue ? 'Todos' : monthValue;
+    $('#monthFilter').value=state.month;
+    render();
+  });
+
+  $('#attentionDrill').addEventListener('click',()=>showDrilldown({
+    title:'Projetos que exigem acompanhamento',
+    subtitle:'Em andamento, stand by, congelados ou atrasados no recorte atual.',
+    rows:uniqueProjects(filtered().filter(p=>attentionStatuses.includes(p.status)))
+  }));
+
+  $('#closeDialog').addEventListener('click',()=>$('#projectDialog').close());
+  $('#projectDialog').addEventListener('close',()=>{
+    if(returnToDrilldown){
+      returnToDrilldown=false;
+      $('#drilldownDialog').showModal();
+    }
+  });
+  $('#closeDrilldown').addEventListener('click',()=>$('#drilldownDialog').close());
+
+  document.querySelectorAll('[data-classification]').forEach((b)=>b.addEventListener('click',()=>{
+    state.classification=b.dataset.classification;
+    document.querySelectorAll('[data-classification]').forEach(x=>x.classList.toggle('is-active',x===b));
+    renderCharts();
+  }));
+  document.querySelectorAll('[data-view]').forEach((b)=>b.addEventListener('click',()=>{
+    state.view=b.dataset.view;
+    $('#managementView').classList.toggle('is-hidden',state.view!=='management');
+    $('#timelineView').classList.toggle('is-hidden',state.view!=='timeline');
+    document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('is-active',x===b));
+  }));
+
+  render();
+})();
+
+</script>
+</body>
+</html>
